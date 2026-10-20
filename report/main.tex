@@ -1,0 +1,73 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=2.5cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb,bm}
+\usepackage{graphicx}
+\usepackage{booktabs,longtable,array}
+\usepackage{xcolor}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage[round,authoryear]{natbib}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,citecolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+\usepackage[nameinlink,capitalise]{cleveref}
+
+% Numbers in the text come from the code: regenerate with scripts/make_report_assets.py.
+\input{generated/numbers.tex}
+
+\newcommand{\todo}[1]{\textcolor{red!70!black}{\textbf{[TODO:} #1\textbf{]}}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\operatorname{Var}}
+\newcommand{\code}[1]{\texttt{#1}}
+
+\graphicspath{{figures/}}
+
+\title{PCA-Based Statistical Arbitrage on US Equities:\\
+\large A Replication of Avellaneda \& Lee (2010) and an Analysis of Its Trading Costs}
+\author{Korhan Karadere\\
+\small MEng Biomedical Engineering, Imperial College London}
+\date{Draft, \today\\ \small\textcolor{red!70!black}{Results are in-sample only; the held-out test period has not been evaluated.}}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We replicate the PCA-based statistical arbitrage strategy of \citet{avellaneda2010} on the
+constituents of the S\&P~500 from 2011 onwards. Each day, eigenportfolios of the empirical
+correlation matrix serve as risk factors. Each stock's residual return is modelled as an
+Ornstein--Uhlenbeck process, and positions are opened when the residual deviates far from its
+equilibrium. On in-sample data (2011--2018) the original specification retains a gross
+Sharpe ratio of \BaseGrossSR{}, but at an assumed one-way cost of 5~bps its net Sharpe ratio
+is \BaseNetSR{}: the strategy earns only \BaseBreakeven{}~bps per unit of capital traded.
+Decomposing turnover shows that roughly half of it comes from the factor hedges that are traded
+when positions open and close, because every eigenportfolio holds every stock. Reducing the
+number of hedged factors, which agrees with a random-matrix estimate of how many eigenvalues
+are distinguishable from noise, and adding a no-trade band together raise the break-even cost to
+about 5.6--5.8~bps, with a net Sharpe ratio near $0.15$. The 2019--2025 period is held out, and
+the final evaluation on it is reported in \cref{sec:oos}.
+\todo{Finalise the abstract after the held-out test and the multiple-testing correction.}
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\input{sections/01_introduction}
+\input{sections/02_related_work}
+\input{sections/03_data}
+\input{sections/04_methodology}
+\input{sections/05_implementation}
+\input{sections/06_protocol}
+\input{sections/07_results}
+\input{sections/08_discussion}
+\input{sections/09_conclusion}
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\appendix
+\input{appendix/a_ou}
+\input{appendix/b_variants}
+
+\end{document}

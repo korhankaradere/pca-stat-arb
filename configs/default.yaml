@@ -1,0 +1,26 @@
+# Baseline parameters follow Avellaneda & Lee (2010), "Statistical arbitrage in the US equities market".
+
+data:
+  source: yfinance          # yfinance | crsp
+  universe: sp500_current   # current S&P 500 members (survivorship-biased; see README)
+  start: "2010-01-01"
+  end: "2025-12-31"
+
+strategy:
+  pca_window: 252           # days of returns used for the correlation matrix
+  n_factors: 15             # number of eigenportfolios kept
+  residual_window: 60       # days used for the factor regression + OU fit
+  kappa_min: 8.4            # 252/30: require mean-reversion time under ~30 trading days
+  s_open: 1.25              # open a long when s < -1.25, a short when s > 1.25
+  s_close_long: 0.50        # close a long when s > -0.50
+  s_close_short: 0.75       # close a short when s < 0.75
+  center_mean: true         # subtract the cross-sectional mean of m (AL's "modified s-score")
+  position_size: 0.01       # dollar notional per open name, as a fraction of capital
+  cost_bps: 5.0             # one-way transaction cost, in basis points of traded notional
+  hedge_mode: daily         # daily (AL baseline) | frozen (hedge fixed at entry)
+  volume_adjust: false      # AL "trading time" signal
+  volume_window: 10
+  rebalance_band: 0.0       # skip trades smaller than this (fraction of capital)
+
+evaluation:
+  split_date: "2019-01-01"  # tune on data before this date; the rest is the held-out test

@@ -1,0 +1,240 @@
+\section{Methodology}
+\label{sec:method}
+
+The strategy is re-estimated at the close of every trading day $t$ using only returns up to and
+including day $t$. \Cref{tab:params} lists the parameters and their baseline values, which
+follow AL. \Cref{alg:daily} summarises one day of the procedure.
+
+\begin{table}[ht]
+\centering
+\caption{Strategy parameters. Baseline values follow \citet{avellaneda2010}.}
+\label{tab:params}
+\begin{tabular}{llr}
+\toprule
+Symbol & Meaning & Baseline \\
+\midrule
+$M$ & correlation estimation window (days) & 252 \\
+$m$ & number of eigenportfolios (factors) & 15 \\
+$L$ & residual estimation window (days) & 60 \\
+$\kappa_{\min}$ & minimum mean-reversion speed (per year) & $252/30 \approx 8.4$ \\
+$\bar s_{\text{open}}$ & entry threshold & 1.25 \\
+$\bar s_{\text{cl}}$ & exit threshold, longs & 0.50 \\
+$\bar s_{\text{cs}}$ & exit threshold, shorts & 0.75 \\
+$q$ & notional per position (fraction of capital) & 0.01 \\
+$c$ & one-way transaction cost & 5~bps \\
+$\delta$ & no-trade band (fraction of capital) & 0 (off) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Eigenportfolios}
+\label{sec:method:pca}
+
+Let $\mathcal U_t$ be the set of $N_t$ stocks with a complete return history over the window
+$\{t-M+1,\dots,t\}$. For each such stock compute the sample mean $\bar R_i$ and standard
+deviation $\sigma_i$ over the window, and the standardised returns
+$Y_{is} = (R_{is} - \bar R_i)/\sigma_i$. The empirical correlation matrix is
+\begin{equation}
+  \rho_{ij} = \frac{1}{M-1} \sum_{s=t-M+1}^{t} Y_{is} Y_{js} .
+\end{equation}
+Let $\lambda_1 \ge \lambda_2 \ge \dots \ge \lambda_{N_t}$ be its eigenvalues and
+$\bm v^{(1)},\dots,\bm v^{(N_t)}$ the corresponding unit eigenvectors. The first $m$
+eigenvectors define the \emph{eigenportfolios}, with dollar weights
+\begin{equation}
+  Q_i^{(j)} = \frac{v_i^{(j)}}{\sigma_i}, \qquad j = 1,\dots,m,
+  \label{eq:eigenportfolio}
+\end{equation}
+and returns $F_{js} = \sum_i Q_i^{(j)} R_{is}$. Dividing by $\sigma_i$ maps the eigenvector,
+which lives in the space of standardised returns, back to dollar holdings, so volatile stocks
+receive smaller weights. Eigenvectors are only defined up to sign. We choose the sign that
+makes $\sum_i v_i^{(j)} > 0$. This does not affect the strategy but makes the first factor read
+as a long-only ``market'' portfolio.
+
+\subsection{Factor regression}
+\label{sec:method:regression}
+
+For each stock $i \in \mathcal U_t$, the last $L$ daily returns are regressed on the
+contemporaneous eigenportfolio returns:
+\begin{equation}
+  R_{is} = \alpha_i + \sum_{j=1}^{m} \beta_{ij} F_{js} + \varepsilon_{is},
+  \qquad s = t-L+1,\dots,t .
+  \label{eq:regression}
+\end{equation}
+The correlation matrix uses a long window ($M=252$) because the factors need many observations
+to be estimated stably. The regression uses a short window ($L=60$) because factor loadings
+drift over time. All $N_t$ regressions share the same design matrix, so they are solved with a
+single least-squares call (\cref{sec:impl}).
+
+\subsection{Residual process}
+\label{sec:method:ou}
+
+The cumulative residual
+\begin{equation}
+  X_{ik} = \sum_{s=t-L+1}^{t-L+k} \varepsilon_{is}, \qquad k = 1,\dots,L,
+\end{equation}
+measures how far stock $i$ has drifted from the path implied by its factor exposures. Following
+AL, it is modelled as an Ornstein--Uhlenbeck process,
+\begin{equation}
+  dX_i = \kappa_i (m_i - X_i)\, dt + \sigma_i^{\text{OU}}\, dW_i ,
+  \label{eq:ou}
+\end{equation}
+which reverts to the level $m_i$ at speed $\kappa_i$. Sampled daily, \cref{eq:ou} is exactly an
+AR(1) process (\cref{app:ou}),
+\begin{equation}
+  X_{i,k+1} = a_i + b_i X_{ik} + \zeta_{i,k+1},
+  \label{eq:ar1}
+\end{equation}
+which is fitted by least squares. The OU parameters follow as
+\begin{equation}
+  \kappa_i = -252 \ln b_i, \qquad
+  m_i = \frac{a_i}{1-b_i}, \qquad
+  \sigma_{\text{eq},i} = \sqrt{\frac{\Var(\zeta_i)}{1-b_i^2}},
+  \label{eq:ou-params}
+\end{equation}
+where $\sigma_{\text{eq},i}$ is the standard deviation of the stationary distribution of
+$X_i$. If $b_i \notin (0,1)$, the fitted process is not mean-reverting and the stock is not
+eligible on that day. The stock is also ineligible if its estimated mean-reversion time
+$1/\kappa_i$ exceeds $1/\kappa_{\min}$, about 30 trading days, i.e.\ half the estimation window.
+Reversion slower than that cannot be estimated reliably from $L=60$ observations.
+
+\subsection{The s-score}
+\label{sec:method:sscore}
+
+For eligible stocks, the \emph{s-score} is the distance of the current cumulative residual from
+its equilibrium, measured in equilibrium standard deviations:
+\begin{equation}
+  s_i = \frac{X_{iL} - \tilde m_i}{\sigma_{\text{eq},i}}, \qquad
+  \tilde m_i = m_i - \frac{1}{|\mathcal E_t|}\sum_{k \in \mathcal E_t} m_k ,
+  \label{eq:sscore}
+\end{equation}
+where $\mathcal E_t$ is the set of eligible stocks. Centring the equilibrium levels across
+stocks removes a common bias in the estimated $m_i$ that AL attribute to the regression
+intercepts. Because \cref{eq:regression} includes an intercept, the residuals sum to zero over
+the window, so $X_{iL} = 0$ exactly and $s_i = -\tilde m_i/\sigma_{\text{eq},i}$. A strongly
+negative s-score means the stock is cheap relative to its factors and is expected to rise
+relative to them. A strongly positive s-score means the reverse.
+
+\subsection{Trading rule}
+\label{sec:method:rule}
+
+Each stock is in one of three states: long ($+1$), flat ($0$) or short ($-1$). States are
+updated daily by the rule in \cref{tab:rule}. Exits are applied before entries, so a position can
+reverse on a single day. The gap between the entry and exit thresholds (hysteresis) prevents
+positions from being repeatedly opened and closed as the s-score fluctuates around a single
+threshold.
+
+\begin{table}[ht]
+\centering
+\caption{Trading rule on the s-score.}
+\label{tab:rule}
+\begin{tabular}{lll}
+\toprule
+Current state & Condition & New state \\
+\midrule
+flat & $s_i < -\bar s_{\text{open}}$ & long \\
+flat & $s_i > +\bar s_{\text{open}}$ & short \\
+long & $s_i > -\bar s_{\text{cl}}$ & flat \\
+short & $s_i < +\bar s_{\text{cs}}$ & flat \\
+any & stock ineligible on day $t$ & flat \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Portfolio construction and hedging}
+\label{sec:method:portfolio}
+
+Let $\theta_{it} \in \{-1,0,1\}$ be the state of stock $i$ and $w_i = q\,\theta_{it}$ the
+dollar position in the stock. To isolate the residual, each position is hedged by selling
+$\beta_{ij} w_i$ dollars' worth of eigenportfolio $j$ for every $j$. One unit of eigenportfolio
+$j$ holds $Q_k^{(j)}$ dollars of stock $k$, so the hedges can be netted back into single-stock
+holdings. Writing $Q \in \mathbb R^{N\times m}$ and $B \in \mathbb R^{N\times m}$ for the
+matrices of eigenportfolio weights and betas, the net holdings are
+\begin{equation}
+  \bm w^{\text{net}} = \bm w - Q B^\top \bm w .
+  \label{eq:netting}
+\end{equation}
+Within the estimation window the portfolio return is
+$\sum_k w^{\text{net}}_k R_k = \sum_i w_i (R_i - \sum_j \beta_{ij} F_j) = \sum_i w_i(\alpha_i + \varepsilon_i)$:
+the factor exposures cancel by construction and only the residuals remain.
+
+\paragraph{Daily versus frozen hedges.}
+In AL's specification, \cref{eq:netting} is re-evaluated every day with that day's $Q$ and $B$,
+so the hedge of every open position is continuously updated. We also implement a
+\emph{frozen} hedge. The stock-space hedge of position $i$,
+$\bm h_i = -w_i\, Q^{(\tau_i)} \bm\beta_i^{(\tau_i)}$, is computed once on the entry day
+$\tau_i$ and held unchanged until the position is closed. Net holdings are then
+$\bm w + \sum_i \bm h_i$. The trading signals are identical in both modes. Only the hedge
+differs.
+
+\subsection{Cost-reduction mechanisms}
+\label{sec:method:costs}
+
+\paragraph{Volume-adjusted returns.}
+AL's ``trading time'' variant replaces $R_{is}$ in \cref{eq:regression} by
+$R_{is}\,\langle V_i\rangle_s / V_{is}$, where $V_{is}$ is the share volume and
+$\langle V_i\rangle_s$ its trailing 10-day mean ending on day $s$. Returns on heavy-volume days,
+which are more likely to reflect news, are shrunk, and returns on light-volume days are
+amplified. Only the signal uses adjusted returns. The factors and the P\&L use actual returns.
+
+\paragraph{No-trade band.}
+Given the target holdings $w^\ast_{kt}$ from \cref{eq:netting} and yesterday's holdings
+$w_{k,t-1}$, each stock is traded only if its required adjustment exceeds the band $\delta$:
+\begin{equation}
+  w_{kt} =
+  \begin{cases}
+    w^\ast_{kt} & \text{if } |w^\ast_{kt} - w_{k,t-1}| > \delta, \\
+    w_{k,t-1} & \text{otherwise.}
+  \end{cases}
+  \label{eq:band}
+\end{equation}
+This is a simple form of the no-trade region that is optimal under proportional costs
+\citep{davis1990}. It removes the many small hedge adjustments spread across all stocks, at the
+price of a small tracking error to the target.
+
+\paragraph{Fewer factors.}
+Every eigenportfolio holds a position in every stock. So each factor hedged adds a basket trade
+across the entire universe whenever a position is opened or closed. Hedging fewer factors
+reduces this cost but leaves more systematic risk in the residual. This trade-off is studied
+in \cref{sec:results:factors}.
+
+\subsection{Backtest accounting}
+\label{sec:method:accounting}
+
+Holdings determined at the close of day $t$ earn the returns of day $t+1$, so no information from
+day $t+1$ is used to form them. Capital is fixed at one unit, without compounding, as in AL.
+Daily P\&L, as a fraction of capital, is
+\begin{align}
+  \text{gross}_{t+1} &= \sum_k w_{kt}\, R_{k,t+1}, \\
+  \text{cost}_{t+1} &= c \sum_k \left| w_{kt} - w_{k,t-1} \right|, \\
+  \text{net}_{t+1} &= \text{gross}_{t+1} - \text{cost}_{t+1}.
+\end{align}
+The quantity $\text{TO}_t = \sum_k |w_{kt} - w_{k,t-1}|$ is the daily one-way turnover. A missing
+next-day return of a held stock (for example after a delisting) is treated as zero.
+
+Annualised return and volatility are $252$ times the mean and $\sqrt{252}$ times the standard
+deviation of daily net P\&L, and the Sharpe ratio is their ratio. Because the strategy is
+market-neutral and self-financing apart from margin, no risk-free rate is subtracted. We also
+report the \emph{break-even cost}
+\begin{equation}
+  c^\ast = \frac{\overline{\text{gross}}}{\overline{\text{TO}}},
+  \label{eq:breakeven}
+\end{equation}
+the one-way cost at which net P\&L would be zero. It measures the gross edge per unit of capital
+traded and is the most direct summary of whether a variant can survive costs.
+
+\begin{algorithm}[ht]
+\caption{One trading day $t$ of the strategy}
+\label{alg:daily}
+\begin{algorithmic}[1]
+\State $\mathcal U_t \gets$ stocks with complete returns over $[t-M+1, t]$
+\State $Q \gets$ eigenportfolio weights from the top $m$ eigenvectors of $\rho$ \Comment{\cref{eq:eigenportfolio}}
+\State $F \gets R_{[t-L+1,t],\,\mathcal U_t}\, Q$ \Comment{factor returns, $L\times m$}
+\State $(\bm\alpha, B, \bm\varepsilon) \gets$ least squares of $R$ on $[\bm 1, F]$ \Comment{\cref{eq:regression}}
+\State $X \gets \operatorname{cumsum}(\bm\varepsilon)$; fit AR(1); compute $\kappa, m, \sigma_{\text{eq}}$ \Comment{\cref{eq:ar1,eq:ou-params}}
+\State $\bm s \gets$ s-scores, NaN where $\kappa < \kappa_{\min}$ \Comment{\cref{eq:sscore}}
+\State $\bm\theta_t \gets$ update states with the rule of \cref{tab:rule}
+\State $\bm w^\ast \gets q\bm\theta_t - Q B^\top q\bm\theta_t$ \Comment{or frozen hedges}
+\State $\bm w_t \gets$ apply the no-trade band to $\bm w^\ast$ \Comment{\cref{eq:band}}
+\State earn $\bm w_t^\top R_{t+1}$; pay $c\,\|\bm w_t - \bm w_{t-1}\|_1$
+\end{algorithmic}
+\end{algorithm}

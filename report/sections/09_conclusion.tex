@@ -1,0 +1,21 @@
+\section{Conclusion and future work}
+\label{sec:conclusion}
+
+We replicated the PCA statistical arbitrage strategy of \citet{avellaneda2010} on S\&P~500
+stocks from 2011. The residual mean-reversion signal persists, with a gross in-sample Sharpe
+ratio of \BaseGrossSR{}, but at 5~bps one-way cost the original specification loses money
+because its gross edge is only \BaseBreakeven{}~bps per unit traded. About half of its trading
+comes from hedging, and hedging fewer factors together with a no-trade band roughly doubles the
+edge per trade, bringing the strategy to about break-even in-sample.
+
+Planned next steps:
+\begin{enumerate}
+  \item \textbf{Statistical evaluation:} deflated Sharpe ratio, block-bootstrap confidence
+        intervals, cost-sensitivity curves, and analysis of performance across regimes.
+  \item \textbf{Extensions:} hedging with sector ETFs at realistic costs, choosing the number of
+        factors each day from the Marchenko--Pastur edge, shrinkage estimators of the
+        correlation matrix \citep{ledoit2004}, and a learned model of which s-score signals revert.
+  \item \textbf{Data:} survivorship-free CRSP data with delisting returns.
+  \item \textbf{Final evaluation:} a single, pre-registered evaluation on the 2019--2025 held-out
+        period.
+\end{enumerate}

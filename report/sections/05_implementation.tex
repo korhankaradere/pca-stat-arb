@@ -1,0 +1,96 @@
+\section{Implementation and validation}
+\label{sec:impl}
+
+\subsection{Software design}
+
+The strategy is implemented as a Python package (\code{pca\_stat\_arb}) built on NumPy and
+pandas. \Cref{tab:modules} lists its modules. Three design decisions matter for the
+correctness and extensibility of the results.
+
+\begin{enumerate}
+  \item \textbf{A single data contract.} Every data source implements one interface,
+        \code{ReturnsSource}, whose output is a table of daily total returns indexed by date and
+        security. Nothing downstream depends on where the data came from, so replacing Yahoo
+        Finance with CRSP requires only a new loader.
+  \item \textbf{Configuration as data.} All parameters live in typed, immutable configuration
+        objects loaded from YAML files and are checked for validity when loaded. Each experiment
+        is a named set of overrides of the baseline configuration, so every reported variant can
+        be reproduced from a file.
+  \item \textbf{Vectorised daily step.} Within each day all computations run on whole arrays
+        rather than looping over stocks: one symmetric eigendecomposition, one multi-target
+        least-squares solve for all regressions in \cref{eq:regression}, and closed-form AR(1)
+        estimates for all stocks at once. A full backtest over 15 years and 500 stocks takes
+        about 45 seconds on a laptop, which makes systematic parameter sweeps practical.
+\end{enumerate}
+
+\begin{table}[ht]
+\centering
+\caption{Package structure.}
+\label{tab:modules}
+\small
+\begin{tabular}{@{}l>{\raggedright\arraybackslash}p{0.52\textwidth}@{}}
+\toprule
+Module & Responsibility \\
+\midrule
+\code{config} & typed configuration, validation \\
+\code{data.base}, \code{data.yfinance\_source} & data interface; Yahoo Finance loader with caching and cleaning \\
+\code{data.universe} & constituent list snapshot \\
+\code{pca} & eigenportfolios (\cref{sec:method:pca}) \\
+\code{residuals} & factor regression, OU fit, s-scores (\cref{sec:method:regression,sec:method:ou,sec:method:sscore}) \\
+\code{signals} & trading rule (\cref{sec:method:rule}) \\
+\code{backtest} & daily loop, hedging, costs (\cref{sec:method:portfolio,sec:method:costs,sec:method:accounting}) \\
+\code{metrics} & performance statistics, in-sample/test split \\
+\code{scripts/experiments.py} & parallel variant runner, in-sample by default \\
+\code{scripts/make\_report\_assets.py} & all figures, tables and numbers in this report \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Reproducibility of this report.}
+Every figure, results table and quoted statistic in this report is produced by
+\code{scripts/make\_report\_assets.py} directly from the code's output. The numbers in the text are
+inserted as generated \LaTeX{} macros rather than typed by hand, so the report cannot drift out
+of sync with the code. The script truncates the data at the split date before doing anything
+else, so no held-out data can enter the report until the final evaluation.
+
+\subsection{Validation on synthetic data}
+\label{sec:impl:tests}
+
+Backtests can fail silently: a subtle bug can produce plausible-looking but wrong P\&L. The
+implementation is therefore tested on a simulated market where the true structure is known.
+Returns are generated from three factors (a dominant market factor and two zero-mean
+``sector'' factors) plus idiosyncratic residuals whose cumulative sums follow an OU process with
+known $\kappa$. \Cref{tab:tests} summarises the automated tests, all of which pass.
+
+\begin{table}[ht]
+\centering
+\caption{Automated tests. All run on synthetic data with known structure.}
+\label{tab:tests}
+\begin{tabular}{p{0.38\textwidth}p{0.54\textwidth}}
+\toprule
+Test & Property checked \\
+\midrule
+Spectrum vs.\ Marchenko--Pastur edge & exactly the 3 true factors have eigenvalues above $(1+\sqrt{N/T})^2$; the first eigenvector is the market \\
+Orthogonality & regression residuals are orthogonal to the factors, and $X_{iL}=0$ \\
+OU recovery & the AR(1) mapping recovers the true $\kappa$ (up to known small-sample bias) \\
+s-score eligibility & slow or non-mean-reverting residuals yield no s-score \\
+Trading rule & every transition in \cref{tab:rule}, including same-day reversal \\
+\textbf{No look-ahead} (three variants) & replacing all data after day $t$ with random noise leaves every holding up to day $t$ unchanged, for daily hedges, frozen hedges with volume adjustment, and the no-trade band \\
+End-to-end profitability & the strategy is profitable on the synthetic mean-reverting market \\
+Hedge modes & frozen hedges give identical signals with lower turnover, and are released on exit \\
+No-trade band & every executed trade exceeds $\delta$; turnover falls \\
+Costs & costs reduce net P\&L and leave gross P\&L unchanged \\
+Missing data & a stock with a data gap is not traded until it has a full window again \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The look-ahead tests are the most important. Look-ahead bias, the use of information that would
+not have been available at the time of the trade, is the most common way a backtest overstates
+performance. Rather than relying on a careful reading of the code, these tests check the
+property mechanically for every hedging mode.
+
+\paragraph{Consistency checks on real data.}
+On the real data we additionally verified that the recorded states never violate the trading
+rule. Across all stocks and in-sample days, no flat stock with $|s_i| > \bar s_{\text{open}}$
+failed to open the corresponding position.

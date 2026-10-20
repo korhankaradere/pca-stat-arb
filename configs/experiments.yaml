@@ -1,0 +1,6 @@
+# Strategy variants compared by scripts/experiments.py (overrides of configs/default.yaml).
+variants:
+  baseline: {}
+  frozen_hedge: {hedge_mode: frozen}
+  volume_signal: {volume_adjust: true}
+  frozen_volume: {hedge_mode: frozen, volume_adjust: true}

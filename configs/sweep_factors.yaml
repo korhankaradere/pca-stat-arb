@@ -1,0 +1,12 @@
+# In-sample: fewer factors (cheaper hedge baskets), combined with the better exit rule.
+variants:
+  f1: {n_factors: 1}
+  f2: {n_factors: 2}
+  f3: {n_factors: 3}
+  f5: {n_factors: 5}
+  f8: {n_factors: 8}
+  f1_exitneg: {n_factors: 1, s_open: 2.0, s_close_long: -0.5, s_close_short: -0.5}
+  f3_exitneg: {n_factors: 3, s_open: 2.0, s_close_long: -0.5, s_close_short: -0.5}
+  f5_exitneg: {n_factors: 5, s_open: 2.0, s_close_long: -0.5, s_close_short: -0.5}
+  f3_frozen: {n_factors: 3, hedge_mode: frozen}
+  f5_frozen: {n_factors: 5, hedge_mode: frozen}

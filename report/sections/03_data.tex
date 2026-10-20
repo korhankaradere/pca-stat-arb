@@ -1,0 +1,38 @@
+\section{Data}
+\label{sec:data}
+
+\paragraph{Universe.}
+The universe is the current list of S\&P~500 constituents, taken from Wikipedia and saved as a
+snapshot file so that every run uses the same list. Of the 503 listed share classes, Yahoo
+Finance returns data for \NStocksTotal{}. The three missing are recent spin-offs with no
+history in the sample.
+
+\paragraph{Prices and returns.}
+Daily closing prices, adjusted for splits and dividends, and daily share volumes are downloaded
+from Yahoo Finance for \DataStart{} to \DataEnd{}. The return of stock $i$ on day $t$ is the
+simple total return
+\begin{equation}
+  R_{it} = \frac{P_{it}}{P_{i,t-1}} - 1 .
+\end{equation}
+Missing prices are \emph{not} filled. A gap leaves a missing return, and the stock cannot be
+traded until it has a complete estimation window again (\cref{sec:method}). Yahoo Finance
+backfills prices for some companies from before their US listing (e.g.\ SW, FERG, AMCR). These
+days carry zero reported volume, so we treat every zero-volume day as a non-trading day.
+
+\paragraph{Survivorship bias.}
+Using today's index members for a historical backtest introduces survivorship bias. Stocks that
+were removed from the index, acquired or delisted between 2010 and today are missing, and
+today's members are by construction companies that survived and mostly grew. For a
+market-neutral strategy the direction of the bias is not obvious, since it affects both long and
+short legs. It does, however, make the universe less representative and removes exactly the
+stocks with the most extreme idiosyncratic moves. All results in this draft should be read with
+this caveat. The data layer is built so that the CRSP daily stock file, which provides a
+point-in-time universe and delisting returns, can replace Yahoo Finance without changes to the
+strategy code (\cref{sec:impl}).
+\todo{Re-run on CRSP via WRDS and report the difference.}
+
+\paragraph{Sample split.}
+The data are split into an in-sample period, which ends on 31~December~2018, and a held-out test
+period from \SplitDate{} to \DataEnd{}. Because the first 252 days are needed to estimate the
+model, the first trading day is \InSampleStart{}, giving \InSampleDays{} in-sample trading
+days. The split and how it is enforced are described in \cref{sec:protocol}.

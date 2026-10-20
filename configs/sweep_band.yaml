@@ -1,0 +1,10 @@
+# In-sample: no-trade band on top of the factor-count trade-off.
+variants:
+  f15_band05: {rebalance_band: 0.0005}
+  f15_band10: {rebalance_band: 0.001}
+  f15_band20: {rebalance_band: 0.002}
+  f3_band05: {n_factors: 3, rebalance_band: 0.0005}
+  f3_band10: {n_factors: 3, rebalance_band: 0.001}
+  f8_band05: {n_factors: 8, rebalance_band: 0.0005}
+  f8_band10: {n_factors: 8, rebalance_band: 0.001}
+  f8_band20: {n_factors: 8, rebalance_band: 0.002}

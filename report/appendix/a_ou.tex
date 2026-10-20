@@ -1,0 +1,26 @@
+\section{From the OU process to the AR(1) regression}
+\label{app:ou}
+
+The OU process $dX = \kappa(m - X)\,dt + \sigma\,dW$ has the exact solution
+\begin{equation}
+  X_{t+\Delta t} = m\left(1 - e^{-\kappa\Delta t}\right) + e^{-\kappa \Delta t} X_t
+  + \sigma \int_t^{t+\Delta t} e^{-\kappa(t+\Delta t - u)}\, dW_u .
+\end{equation}
+The stochastic integral is Gaussian with mean zero and variance
+$\sigma^2 (1 - e^{-2\kappa\Delta t})/(2\kappa)$. Sampling at $\Delta t = 1/252$ therefore gives
+exactly the AR(1) model $X_{k+1} = a + bX_k + \zeta_{k+1}$ with
+\begin{equation}
+  b = e^{-\kappa\Delta t}, \qquad
+  a = m(1-b), \qquad
+  \Var(\zeta) = \frac{\sigma^2}{2\kappa}\left(1-b^2\right).
+\end{equation}
+Inverting these relations gives \cref{eq:ou-params}: $\kappa = -\ln(b)/\Delta t$,
+$m = a/(1-b)$, and the stationary standard deviation
+$\sigma_{\text{eq}} = \sigma/\sqrt{2\kappa} = \sqrt{\Var(\zeta)/(1-b^2)}$.
+The mean-reversion time $1/\kappa$ is the time for a deviation from $m$ to decay by a factor of
+$e$. The condition $\kappa > 252/30$ requires this to be under 30 trading days.
+
+The least-squares estimate of $b$ from $L = 60$ observations is biased downwards in small samples,
+so $\kappa$ is biased upwards. Since the bias affects all stocks similarly, its effect on the
+cross-sectional ranking of s-scores is limited, but it does make the $\kappa_{\min}$ filter less
+strict than it appears.

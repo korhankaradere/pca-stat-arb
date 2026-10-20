@@ -1,0 +1,14 @@
+# In-sample sweep of trading parameters (all on the AL baseline, daily hedging).
+variants:
+  baseline: {}
+  open150: {s_open: 1.5}
+  open175: {s_open: 1.75}
+  open200: {s_open: 2.0}
+  open125_close0: {s_close_long: 0.0, s_close_short: 0.0}
+  open200_close0: {s_open: 2.0, s_close_long: 0.0, s_close_short: 0.0}
+  open200_close_neg: {s_open: 2.0, s_close_long: -0.5, s_close_short: -0.5}
+  fast_kappa: {kappa_min: 16.8}
+  slow_ok_kappa: {kappa_min: 4.2}
+  factors5: {n_factors: 5}
+  factors30: {n_factors: 30}
+  resid90: {residual_window: 90}

@@ -1,0 +1,39 @@
+\begin{longtable}{@{}l>{\raggedright\arraybackslash\footnotesize}p{4.4cm}rrrrr@{}}
+\toprule
+Variant & Overrides & Gross SR & Net SR & Vol & Turnover & BE (bps)\\
+\midrule
+\endhead
+\texttt{f3\_band05} & \texttt{n\_factors=3, rebalance\_band=0.0005} & 1.24 & 0.17 & 4.2\% & 0.36 & 5.8\\
+\texttt{f8\_band20} & \texttt{n\_factors=8, rebalance\_band=0.002} & 1.44 & 0.15 & 3.6\% & 0.37 & 5.6\\
+\texttt{f3\_band10} & \texttt{n\_factors=3, rebalance\_band=0.001} & 1.14 & 0.14 & 4.3\% & 0.34 & 5.7\\
+\texttt{f1\_exitneg} & \texttt{n\_factors=1, s\_open=2.0, s\_close\_long=\ensuremath{-}0.5, s\_close\_short=\ensuremath{-}0.5} & 0.48 & 0.13 & 4.1\% & 0.11 & 6.9\\
+\texttt{f3} & \texttt{n\_factors=3} & 1.29 & 0.09 & 4.2\% & 0.41 & 5.4\\
+\texttt{f3\_frozen} & \texttt{n\_factors=3, hedge\_mode=frozen} & 1.21 & 0.05 & 4.3\% & 0.40 & 5.2\\
+\texttt{f8\_band10} & \texttt{n\_factors=8, rebalance\_band=0.001} & 1.51 & 0.03 & 3.6\% & 0.42 & 5.1\\
+\texttt{f2} & \texttt{n\_factors=2} & 0.98 & 0.01 & 4.9\% & 0.38 & 5.0\\
+\texttt{f1} & \texttt{n\_factors=1} & 0.74 & \ensuremath{-}0.01 & 6.1\% & 0.36 & 4.9\\
+\texttt{f5\_exitneg} & \texttt{n\_factors=5, s\_open=2.0, s\_close\_long=\ensuremath{-}0.5, s\_close\_short=\ensuremath{-}0.5} & 0.75 & \ensuremath{-}0.04 & 2.7\% & 0.17 & 4.7\\
+\texttt{f5\_frozen} & \texttt{n\_factors=5, hedge\_mode=frozen} & 1.33 & \ensuremath{-}0.10 & 3.9\% & 0.44 & 4.7\\
+\texttt{f3\_exitneg} & \texttt{n\_factors=3, s\_open=2.0, s\_close\_long=\ensuremath{-}0.5, s\_close\_short=\ensuremath{-}0.5} & 0.48 & \ensuremath{-}0.13 & 2.9\% & 0.14 & 3.9\\
+\texttt{f8\_band05} & \texttt{n\_factors=8, rebalance\_band=0.0005} & 1.51 & \ensuremath{-}0.14 & 3.6\% & 0.47 & 4.6\\
+\texttt{f5} & \texttt{n\_factors=5} & 1.35 & \ensuremath{-}0.15 & 3.8\% & 0.45 & 4.5\\
+\texttt{f8} & \texttt{n\_factors=8} & 1.55 & \ensuremath{-}0.26 & 3.6\% & 0.52 & 4.3\\
+\texttt{open200\_close\_neg} & \texttt{s\_open=2.0, s\_close\_long=\ensuremath{-}0.5, s\_close\_short=\ensuremath{-}0.5} & 1.00 & \ensuremath{-}0.53 & 2.6\% & 0.31 & 3.3\\
+\texttt{f15\_band20} & \texttt{rebalance\_band=0.002} & 1.26 & \ensuremath{-}0.54 & 3.4\% & 0.49 & 3.5\\
+\texttt{f15\_band10} & \texttt{rebalance\_band=0.001} & 1.30 & \ensuremath{-}0.85 & 3.4\% & 0.58 & 3.0\\
+\texttt{open125\_close0} & \texttt{s\_close\_long=0.0, s\_close\_short=0.0} & 1.14 & \ensuremath{-}0.88 & 4.1\% & 0.65 & 2.8\\
+\texttt{open200\_close0} & \texttt{s\_open=2.0, s\_close\_long=0.0, s\_close\_short=0.0} & 0.82 & \ensuremath{-}0.88 & 2.2\% & 0.30 & 2.4\\
+\texttt{f15\_band05} & \texttt{rebalance\_band=0.0005} & 1.32 & \ensuremath{-}1.05 & 3.4\% & 0.63 & 2.8\\
+\texttt{frozen\_hedge} & \texttt{hedge\_mode=frozen} & 1.16 & \ensuremath{-}1.10 & 3.4\% & 0.61 & 2.6\\
+\texttt{resid90} & \texttt{residual\_window=90} & 0.91 & \ensuremath{-}1.10 & 3.1\% & 0.49 & 2.3\\
+\texttt{slow\_ok\_kappa} & \texttt{kappa\_min=4.2} & 1.28 & \ensuremath{-}1.11 & 3.5\% & 0.65 & 2.7\\
+\texttt{open200} & \texttt{s\_open=2.0} & 0.83 & \ensuremath{-}1.14 & 1.8\% & 0.28 & 2.1\\
+\texttt{volume\_signal} & \texttt{volume\_adjust=True} & 1.29 & \ensuremath{-}1.15 & 3.3\% & 0.63 & 2.6\\
+\texttt{baseline} & \texttt{--} & 1.33 & \ensuremath{-}1.18 & 3.4\% & 0.67 & 2.6\\
+\texttt{open150} & \texttt{s\_open=1.5} & 1.11 & \ensuremath{-}1.21 & 2.9\% & 0.54 & 2.4\\
+\texttt{frozen\_volume} & \texttt{hedge\_mode=frozen, volume\_adjust=True} & 1.01 & \ensuremath{-}1.21 & 3.3\% & 0.59 & 2.3\\
+\texttt{open175} & \texttt{s\_open=1.75} & 0.86 & \ensuremath{-}1.33 & 2.3\% & 0.40 & 2.0\\
+\texttt{fast\_kappa} & \texttt{kappa\_min=16.8} & 1.36 & \ensuremath{-}1.64 & 2.9\% & 0.69 & 2.3\\
+\texttt{factors30} & \texttt{n\_factors=30} & 1.16 & \ensuremath{-}2.87 & 3.4\% & 1.09 & 1.4\\
+\bottomrule
+\end{longtable}

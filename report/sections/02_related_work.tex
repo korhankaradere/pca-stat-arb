@@ -1,0 +1,42 @@
+\section{Related work}
+\label{sec:related}
+
+\paragraph{Short-term reversal and pairs trading.}
+Short-horizon reversal in individual stock returns is well documented: stocks that performed
+poorly over the past week or month tend to outperform in the following period
+\citep{lehmann1990,lo1990}. \citet{lo1990} show that a large part of contrarian profits comes
+from cross-stock effects and not only from own-stock overreaction. This motivates looking at
+returns \emph{relative to} related stocks rather than in isolation. \citet{gatev2006} document
+the profitability of a simple distance-based pairs-trading rule over several decades of US data.
+\citet{krauss2017} surveys the pairs-trading literature and classifies approaches into distance,
+cointegration, time-series, stochastic-control and other methods.
+
+\paragraph{Factor models and PCA.}
+Arbitrage pricing theory \citep{ross1976} justifies decomposing returns into exposures to a
+small number of pervasive factors plus idiosyncratic noise. \citet{connor1986} show that the
+factors can be estimated by principal components when the cross-section is large. How many
+factors to keep is a long-standing question. \citet{bai2002} propose information criteria for
+it, while random-matrix theory offers a simple benchmark: under the null of pure noise, the
+eigenvalues of a sample correlation matrix are confined below the Marchenko--Pastur edge
+\citep{marchenko1967}. \citet{laloux1999} and \citet{plerou2002} find that only a small number of
+eigenvalues of stock correlation matrices exceed this edge. The rest are statistically
+indistinguishable from noise.
+
+\paragraph{PCA statistical arbitrage.}
+\citet{avellaneda2010} combine these ingredients: PCA (or sector ETFs) for the factors, an OU
+model for the residuals \citep{uhlenbeck1930}, and a threshold rule on a standardised residual,
+the \emph{s-score}. They also introduce a volume-adjusted (``trading time'') variant. Their
+strategy is the baseline replicated here. \citet{khandani2007} analyse the abrupt losses of
+quantitative equity market-neutral funds in August 2007, a reminder that such strategies are
+crowded and exposed to sudden deleveraging.
+\todo{Add post-2010 replications and extensions, e.g.\ deep-learning variants of residual
+mean-reversion trading.}
+
+\paragraph{Trading costs and evaluation.}
+With proportional costs, the optimal policy is to leave the portfolio unchanged while it stays
+inside a no-trade region \citep{davis1990}. \citet{garleanu2013} show that the optimal portfolio
+moves only partially towards its target each period. Both ideas motivate the no-trade band in
+\cref{sec:method:costs}. On evaluation, \citet{harvey2016} argue that the large number of
+strategies tried by researchers calls for much higher significance thresholds. \citet{bailey2014}
+propose the deflated Sharpe ratio, which corrects an observed Sharpe ratio for the number of
+trials and for non-normal returns. We count every variant we try for exactly this reason.

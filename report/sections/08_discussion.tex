@@ -1,0 +1,53 @@
+\section{Discussion}
+\label{sec:discussion}
+
+\paragraph{The signal is still there, but it is thin.}
+A gross Sharpe ratio between 1.2 and 1.5 for a market-neutral strategy is a strong result in
+statistical terms. Residual mean reversion in large US stocks has not disappeared since AL's
+sample. Economically, however, the edge is about 2.5--5~bps per unit traded, comparable to the
+cost of trading a large-cap stock. Whether the strategy is viable therefore depends almost
+entirely on execution costs, and a cost assumption of 5~bps versus 2~bps would turn a losing
+strategy into a profitable one. Several explanations are plausible for why the edge is smaller
+than in AL's 1997--2007 sample: more capital competing for the same signal \citep{khandani2007},
+narrower spreads and faster price discovery after decimalisation and the rise of electronic
+market making, and a universe restricted to the 500 largest and most liquid US stocks.
+
+\paragraph{Hedging is the hidden cost.}
+In the PCA formulation, factor hedges are dense portfolios across every stock. Hedging is
+therefore not a small adjustment: it doubles the trading volume of the strategy. The flat 5~bps
+cost model treats a hedge trade in the same way as a signal trade. In practice, the systematic
+exposure could be hedged far more cheaply with index futures or sector ETFs, whose trading costs
+are a fraction of a basis point to about one basis point. This suggests an important extension:
+hedge with liquid instruments (AL's ETF variant) and charge each leg its own realistic cost.
+
+\paragraph{Fewer factors, chosen by random-matrix theory.}
+The peak of the gross Sharpe ratio at $m=8$, matching the number of eigenvalues above the
+Marchenko--Pastur edge, suggests choosing $m$ adaptively each day as the number of
+eigenvalues that are statistically distinguishable from noise. This is consistent with the
+finding that the explained variance varies strongly over time (\cref{fig:explained}). It is
+only suggestive so far, since the edge count was examined on a single date.
+
+\paragraph{Extreme s-scores are not better signals.}
+The finding that wider entry thresholds lower the profit per trade suggests that very large
+residual moves are more often driven by information, such as earnings or news, than by
+temporary liquidity imbalances. Such moves are less likely to revert. Volume adjustment was
+meant to address exactly this, but it did not help in our sample. Conditioning on scheduled
+events such as earnings announcements is a more direct alternative.
+
+\subsection{Limitations}
+\label{sec:limitations}
+
+\begin{itemize}
+  \item \textbf{Survivorship bias.} The universe is the 2026 S\&P~500 membership applied to
+        2010--2025 (\cref{sec:data}).
+  \item \textbf{Cost model.} A flat proportional cost, with no market impact, no short-borrow
+        fees and no distinction between liquid and illiquid names or between stock and hedge
+        trades.
+  \item \textbf{Execution.} Trades are assumed to execute at the closing price used to compute
+        the signal. In practice there is a lag between computing the signal and trading.
+  \item \textbf{Accounting.} Fixed capital, no compounding, no margin or financing costs, and
+        missing next-day returns treated as zero.
+  \item \textbf{Multiple testing.} \NVariants{} variants have been evaluated in-sample. The best
+        in-sample Sharpe ratios are biased upwards and must be deflated.
+  \item \textbf{Single market and period.} Results are for large US stocks in 2011--2018 only.
+\end{itemize}

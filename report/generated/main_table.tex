@@ -1,0 +1,14 @@
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lrrrrrr@{}}
+\toprule
+Variant & Gross SR & Net SR & Net return & Max DD & Turnover & BE (bps)\\
+\midrule
+AL baseline ($m=15$, daily hedge) & 1.33 & \ensuremath{-}1.18 & \ensuremath{-}4.0\% & \ensuremath{-}33.1\% & 0.67 & 2.6\\
+Frozen hedge & 1.16 & \ensuremath{-}1.10 & \ensuremath{-}3.7\% & \ensuremath{-}31.6\% & 0.61 & 2.6\\
+Volume-adjusted signal & 1.29 & \ensuremath{-}1.15 & \ensuremath{-}3.8\% & \ensuremath{-}30.4\% & 0.63 & 2.6\\
+Wider entry ($\bar s_{\text{open}}=2.0$) & 0.83 & \ensuremath{-}1.14 & \ensuremath{-}2.1\% & \ensuremath{-}17.0\% & 0.28 & 2.1\\
+$m=3$ & 1.29 & 0.09 & 0.4\% & \ensuremath{-}9.1\% & 0.41 & 5.4\\
+$m=3$, band $0.0005$ & 1.24 & 0.17 & 0.7\% & \ensuremath{-}7.6\% & 0.36 & 5.8\\
+$m=8$, band $0.002$ & 1.44 & 0.15 & 0.6\% & \ensuremath{-}7.5\% & 0.37 & 5.6\\
+\bottomrule
+\end{tabular}

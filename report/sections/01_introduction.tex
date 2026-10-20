@@ -1,0 +1,48 @@
+\section{Introduction}
+\label{sec:intro}
+
+Statistical arbitrage covers trading strategies that exploit predictable, short-lived
+deviations in the relative prices of securities while holding little exposure to the market
+as a whole. The simplest form is pairs trading \citep{gatev2006}: find two stocks that have
+historically moved together, and when the spread between them widens, buy the cheap one and
+short the expensive one. Generalising from pairs to a whole cross-section requires a model of
+what ``moving together'' means for hundreds of stocks at once. A factor model provides one.
+
+\citet{avellaneda2010} (hereafter AL) proposed using principal component analysis (PCA) of the
+empirical correlation matrix to extract the factors directly from the data. Each stock's return
+is decomposed into a systematic part, explained by a small number of \emph{eigenportfolios},
+and an idiosyncratic residual. The cumulative residual is modelled as a mean-reverting
+Ornstein--Uhlenbeck (OU) process. When a stock's residual is far below its estimated
+equilibrium, the stock is bought and its factor exposure hedged away. Symmetrically, stocks with
+residuals far above equilibrium are shorted. The resulting portfolio is close to market- and
+factor-neutral, so its profits come from the mean reversion of the residuals.
+
+AL report attractive risk-adjusted returns for US equities over 1997--2007 and note a decline in
+performance in the later years of their sample. This project asks three questions:
+\begin{enumerate}
+  \item Does the PCA residual signal still carry information in the S\&P~500 after 2010?
+  \item If it does, is the strategy profitable after realistic trading costs, and if not, where
+        do the costs come from?
+  \item Which design choices reduce those costs without destroying the signal, and do the
+        improvements survive a held-out test period?
+\end{enumerate}
+
+\paragraph{Contributions.}
+\begin{itemize}
+  \item An open, tested implementation of the AL strategy with a pluggable data layer, so the
+        same code can run on free data (Yahoo Finance) or survivorship-free data (CRSP).
+  \item A decomposition of the strategy's turnover. It shows that the cost of hedging, which is
+        incurred mainly when positions open and close, is as large as the cost of trading the
+        signal itself.
+  \item Evidence that hedging fewer factors, chosen in line with random-matrix theory, and a
+        no-trade band roughly double the edge per unit traded.
+  \item An evaluation protocol with a strict in-sample/test split enforced by the tooling, and an
+        explicit count of every variant tried, so the final results can be corrected for
+        multiple testing.
+\end{itemize}
+
+\paragraph{Outline.}
+\Cref{sec:related} reviews related work. \Cref{sec:data} describes the data,
+\cref{sec:method} the methodology, and \cref{sec:impl} the implementation and its validation.
+\Cref{sec:protocol} sets out the evaluation protocol, \cref{sec:results} presents results, and
+\cref{sec:discussion} discusses them and their limitations.
