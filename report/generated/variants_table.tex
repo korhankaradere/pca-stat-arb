@@ -10,14 +10,21 @@ Variant & Overrides & Gross SR & Net SR & Vol & Turnover & BE (bps)\\
 \texttt{f3} & \texttt{n\_factors=3} & 1.29 & 0.09 & 4.2\% & 0.41 & 5.4\\
 \texttt{f3\_frozen} & \texttt{n\_factors=3, hedge\_mode=frozen} & 1.21 & 0.05 & 4.3\% & 0.40 & 5.2\\
 \texttt{f8\_band10} & \texttt{n\_factors=8, rebalance\_band=0.001} & 1.51 & 0.03 & 3.6\% & 0.42 & 5.1\\
+\texttt{etf} & \texttt{factor\_model=etf} & 1.22 & 0.02 & 3.9\% & 0.59 & 5.1\\
+\texttt{etf\_band05} & \texttt{factor\_model=etf, rebalance\_band=0.0005} & 1.22 & 0.02 & 3.9\% & 0.59 & 5.1\\
 \texttt{f2} & \texttt{n\_factors=2} & 0.98 & 0.01 & 4.9\% & 0.38 & 5.0\\
 \texttt{f1} & \texttt{n\_factors=1} & 0.74 & \ensuremath{-}0.01 & 6.1\% & 0.36 & 4.9\\
 \texttt{f5\_exitneg} & \texttt{n\_factors=5, s\_open=2.0, s\_close\_long=\ensuremath{-}0.5, s\_close\_short=\ensuremath{-}0.5} & 0.75 & \ensuremath{-}0.04 & 2.7\% & 0.17 & 4.7\\
 \texttt{f5\_frozen} & \texttt{n\_factors=5, hedge\_mode=frozen} & 1.33 & \ensuremath{-}0.10 & 3.9\% & 0.44 & 4.7\\
+\texttt{f3\_band05\_lag1} & \texttt{n\_factors=3, rebalance\_band=0.0005, execution\_lag=1} & 0.97 & \ensuremath{-}0.12 & 4.2\% & 0.36 & 4.5\\
+\texttt{f8\_band20\_lag1} & \texttt{n\_factors=8, rebalance\_band=0.002, execution\_lag=1} & 1.18 & \ensuremath{-}0.12 & 3.6\% & 0.37 & 4.5\\
 \texttt{f3\_exitneg} & \texttt{n\_factors=3, s\_open=2.0, s\_close\_long=\ensuremath{-}0.5, s\_close\_short=\ensuremath{-}0.5} & 0.48 & \ensuremath{-}0.13 & 2.9\% & 0.14 & 3.9\\
 \texttt{f8\_band05} & \texttt{n\_factors=8, rebalance\_band=0.0005} & 1.51 & \ensuremath{-}0.14 & 3.6\% & 0.47 & 4.6\\
 \texttt{f5} & \texttt{n\_factors=5} & 1.35 & \ensuremath{-}0.15 & 3.8\% & 0.45 & 4.5\\
+\texttt{etf\_cost2} & \texttt{factor\_model=etf, etf\_cost\_bps=2.0} & 1.22 & \ensuremath{-}0.15 & 3.9\% & 0.59 & 4.3\\
 \texttt{f8} & \texttt{n\_factors=8} & 1.55 & \ensuremath{-}0.26 & 3.6\% & 0.52 & 4.3\\
+\texttt{etf\_lag1} & \texttt{factor\_model=etf, execution\_lag=1} & 0.82 & \ensuremath{-}0.39 & 3.9\% & 0.59 & 3.1\\
+\texttt{etf\_band05\_lag1} & \texttt{factor\_model=etf, rebalance\_band=0.0005, execution\_lag=1} & 0.82 & \ensuremath{-}0.39 & 3.9\% & 0.59 & 3.1\\
 \texttt{open200\_close\_neg} & \texttt{s\_open=2.0, s\_close\_long=\ensuremath{-}0.5, s\_close\_short=\ensuremath{-}0.5} & 1.00 & \ensuremath{-}0.53 & 2.6\% & 0.31 & 3.3\\
 \texttt{f15\_band20} & \texttt{rebalance\_band=0.002} & 1.26 & \ensuremath{-}0.54 & 3.4\% & 0.49 & 3.5\\
 \texttt{f15\_band10} & \texttt{rebalance\_band=0.001} & 1.30 & \ensuremath{-}0.85 & 3.4\% & 0.58 & 3.0\\
@@ -34,6 +41,7 @@ Variant & Overrides & Gross SR & Net SR & Vol & Turnover & BE (bps)\\
 \texttt{frozen\_volume} & \texttt{hedge\_mode=frozen, volume\_adjust=True} & 1.01 & \ensuremath{-}1.21 & 3.3\% & 0.59 & 2.3\\
 \texttt{open175} & \texttt{s\_open=1.75} & 0.86 & \ensuremath{-}1.33 & 2.3\% & 0.40 & 2.0\\
 \texttt{fast\_kappa} & \texttt{kappa\_min=16.8} & 1.36 & \ensuremath{-}1.64 & 2.9\% & 0.69 & 2.3\\
+\texttt{baseline\_lag1} & \texttt{execution\_lag=1} & 0.74 & \ensuremath{-}1.75 & 3.4\% & 0.67 & 1.5\\
 \texttt{factors30} & \texttt{n\_factors=30} & 1.16 & \ensuremath{-}2.87 & 3.4\% & 1.09 & 1.4\\
 \bottomrule
 \end{longtable}

@@ -166,22 +166,40 @@ def fig_factor_tradeoff(table: pd.DataFrame):
 
 # ---------------------------------------------------------------- tables
 
-def load_all_variants(split: pd.Timestamp, cost_bps: float) -> pd.DataFrame:
+def load_variant_overrides() -> dict:
+    """Every variant defined in any experiment config, by name."""
+    import yaml
+
+    overrides = {}
+    for path in sorted((ROOT / "configs").glob("*.yaml")):
+        overrides.update((yaml.safe_load(path.read_text()) or {}).get("variants", {}))
+    return overrides
+
+
+def load_all_variants(split: pd.Timestamp, strategy, overrides: dict) -> pd.DataFrame:
     """Recompute every variant's in-sample stats from its saved daily P&L, so all rows are
-    computed the same way. Turnover is recovered from the cost column (cost = turnover * bps)."""
+    computed the same way. Break-even is the one-way *stock* cost at which net P&L would be
+    zero, with any ETF hedge leg charged at its own cost."""
     rows = {}
     for path in sorted((ROOT / "results").glob("*/*_pnl.csv")):
         name = path.stem.removesuffix("_pnl")
         if name in rows:
             continue
+        if name not in overrides:
+            raise KeyError(f"{path}: variant {name!r} is not defined in any configs/*.yaml")
         pnl = pd.read_csv(path, index_col=0, parse_dates=True)
         pnl = pnl[pnl.index < split]
         net, gross = summary(pnl["net"]), summary(pnl["gross"])
-        turnover = (pnl["cost"] / (cost_bps / 1e4)).mean()
+        if "stock_turnover" in pnl:
+            stock_to, etf_to = pnl["stock_turnover"].mean(), pnl["etf_turnover"].mean()
+        else:  # runs saved before turnover was recorded: recover it from cost = turnover * bps
+            stock_to, etf_to = (pnl["cost"] / (strategy.cost_bps / 1e4)).mean(), 0.0
+        etf_cost = overrides[name].get("etf_cost_bps", strategy.etf_cost_bps) / 1e4
         rows[name] = {
             "gross_sharpe": gross["sharpe"], "net_sharpe": net["sharpe"],
             "net_ann_ret": net["ann_return"], "ann_vol": net["ann_vol"], "max_dd": net["max_drawdown"],
-            "turnover": turnover, "breakeven_bps": gross["ann_return"] / (turnover * 252) * 1e4,
+            "turnover": stock_to + etf_to,
+            "breakeven_bps": (pnl["gross"].mean() - etf_to * etf_cost) / stock_to * 1e4,
         }
     return pd.DataFrame(rows).T
 
@@ -239,8 +257,6 @@ def write_macros(values: dict):
 # ---------------------------------------------------------------- main
 
 def main():
-    import yaml
-
     FIG.mkdir(parents=True, exist_ok=True)
     GEN.mkdir(parents=True, exist_ok=True)
     cfg = Config.from_yaml(ROOT / "configs" / "default.yaml")
@@ -265,10 +281,8 @@ def main():
     fig_sscore(res, "JPM", 2017, cfg.strategy)
     fig_cum_pnl(res.pnl)
 
-    table = load_all_variants(split, cfg.strategy.cost_bps)
-    overrides = {}
-    for f in ["experiments", "sweep_thresholds", "sweep_factors", "sweep_band"]:
-        overrides.update(yaml.safe_load((ROOT / "configs" / f"{f}.yaml").read_text())["variants"])
+    overrides = load_variant_overrides()
+    table = load_all_variants(split, cfg.strategy, overrides)
     # The same configuration run under two names counts as one trial.
     key = {name: tuple(sorted(overrides.get(name, {}).items())) for name in table.index}
     table = table.loc[~pd.Series(key).duplicated().values]
