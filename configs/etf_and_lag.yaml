@@ -1,0 +1,14 @@
+# In-sample: sector-ETF factor model (AL's ETF version, hedged in ETFs at 1 bp) and the
+# execution-lag robustness check (trade one day after the signal).
+variants:
+  baseline: {}
+  baseline_lag1: {execution_lag: 1}
+  f8_band20: {n_factors: 8, rebalance_band: 0.002}
+  f8_band20_lag1: {n_factors: 8, rebalance_band: 0.002, execution_lag: 1}
+  f3_band05: {n_factors: 3, rebalance_band: 0.0005}
+  f3_band05_lag1: {n_factors: 3, rebalance_band: 0.0005, execution_lag: 1}
+  etf: {factor_model: etf}
+  etf_lag1: {factor_model: etf, execution_lag: 1}
+  etf_band05: {factor_model: etf, rebalance_band: 0.0005}
+  etf_band05_lag1: {factor_model: etf, rebalance_band: 0.0005, execution_lag: 1}
+  etf_cost2: {factor_model: etf, etf_cost_bps: 2.0}

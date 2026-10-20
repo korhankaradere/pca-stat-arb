@@ -113,3 +113,60 @@ def test_rebalance_band_cuts_turnover_and_keeps_lookahead_safety(factor_market):
     pd.testing.assert_frame_equal(
         banded.weights.iloc[: cut + 1], run_backtest(r2, cfg).weights.iloc[: cut + 1]
     )
+
+
+ETF_CFG = StrategyConfig(**{**CFG.__dict__, "factor_model": "etf"})
+
+
+def test_etf_model_profits_and_hedges_factor_exposure(factor_market_with_factors):
+    from pca_stat_arb.residuals import fit_residuals
+
+    returns, loadings, etfs = factor_market_with_factors
+    res = run_backtest(returns, ETF_CFG, etf_returns=etfs)
+    assert res.net_returns.mean() > 0
+
+    # Exact: on any day, the ETF hedge is -B^T w for the betas fitted on that day's window.
+    t = 500
+    L = ETF_CFG.residual_window
+    fit = fit_residuals(returns.to_numpy()[t - L + 1 : t + 1], etfs.to_numpy()[t - L + 1 : t + 1])
+    w = res.weights.to_numpy()[t]
+    np.testing.assert_allclose(res.etf_weights.to_numpy()[t], -(fit.betas.T @ w), atol=1e-12)
+
+    # Statistical: the dominant market factor's exposure is mostly hedged away. (Weak factors
+    # are hedged less well: 60 days cannot pin their betas down. That is estimation noise.)
+    W, H = res.weights.to_numpy(), res.etf_weights.to_numpy()
+    active = np.abs(W).sum(axis=1) > 0
+    hedged = np.median(np.abs((W @ loadings + H)[active, 0]))
+    unhedged = np.median(np.abs((W @ loadings)[active, 0]))
+    assert hedged < 0.5 * unhedged
+
+
+def test_etf_model_charges_each_leg_its_own_cost(factor_market_with_factors):
+    returns, _, etfs = factor_market_with_factors
+    cfg = StrategyConfig(**{**ETF_CFG.__dict__, "cost_bps": 5.0, "etf_cost_bps": 1.0})
+    pnl = run_backtest(returns, cfg, etf_returns=etfs).pnl
+    assert (pnl["etf_turnover"] > 0).any()
+    expected = pnl["stock_turnover"] * 5e-4 + pnl["etf_turnover"] * 1e-4
+    np.testing.assert_allclose(pnl["cost"], expected)
+
+
+def test_no_lookahead_etf_model(factor_market_with_factors):
+    returns, _, etfs = factor_market_with_factors
+    cut = 450
+    base = run_backtest(returns, ETF_CFG, etf_returns=etfs)
+    rng = np.random.default_rng(9)
+    r2, e2 = returns.copy(), etfs.copy()
+    r2.iloc[cut + 1 :] = rng.normal(0, 0.05, r2.iloc[cut + 1 :].shape)
+    e2.iloc[cut + 1 :] = rng.normal(0, 0.05, e2.iloc[cut + 1 :].shape)
+    res = run_backtest(r2, ETF_CFG, etf_returns=e2)
+    pd.testing.assert_frame_equal(base.weights.iloc[: cut + 1], res.weights.iloc[: cut + 1])
+    pd.testing.assert_frame_equal(base.etf_weights.iloc[: cut + 1], res.etf_weights.iloc[: cut + 1])
+
+
+def test_execution_lag_delays_holdings_by_one_day(factor_market):
+    returns, _ = factor_market
+    now = run_backtest(returns, CFG)
+    late = run_backtest(returns, StrategyConfig(**{**CFG.__dict__, "execution_lag": 1}))
+    pd.testing.assert_frame_equal(now.states, late.states)  # same signals...
+    np.testing.assert_allclose(late.weights.to_numpy()[1:], now.weights.to_numpy()[:-1])  # ...traded a day later
+    assert (late.weights.iloc[0] == 0).all()

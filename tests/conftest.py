@@ -3,10 +3,10 @@ import pandas as pd
 import pytest
 
 
-def simulate_factor_market(T=600, N=80, m=3, kappa=25.0, seed=0):
+def simulate_factor_market(T=600, N=80, m=3, kappa=25.0, seed=0, return_factors=False):
     """Returns driven by m factors plus idiosyncratic residuals whose cumulative sum is OU.
 
-    Returns (returns_frame, true_loadings).
+    Returns (returns_frame, true_loadings), plus the factor-return frame if return_factors.
     """
     rng = np.random.default_rng(seed)
     dt = 1 / 252
@@ -26,9 +26,18 @@ def simulate_factor_market(T=600, N=80, m=3, kappa=25.0, seed=0):
 
     R = factors @ loadings.T + resid
     idx = pd.bdate_range("2015-01-01", periods=T)
-    return pd.DataFrame(R, index=idx, columns=[f"S{i}" for i in range(N)]), loadings
+    frame = pd.DataFrame(R, index=idx, columns=[f"S{i}" for i in range(N)])
+    if return_factors:
+        return frame, loadings, pd.DataFrame(factors, index=idx, columns=[f"F{j}" for j in range(m)])
+    return frame, loadings
 
 
 @pytest.fixture
 def factor_market():
     return simulate_factor_market()
+
+
+@pytest.fixture
+def factor_market_with_factors():
+    """Same market, plus the true factor returns (stand-ins for tradable ETFs)."""
+    return simulate_factor_market(return_factors=True)

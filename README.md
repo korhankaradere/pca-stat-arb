@@ -68,6 +68,8 @@ sh report/build.sh      # regenerates assets, then compiles report/main.pdf with
 2. Costs come mainly from **hedge baskets traded at entry and exit**, not from daily re-hedging. Each factor adds a basket across every stock in the universe.
 3. Fewer factors and a no-trade band roughly double the edge per trade. More extreme entry thresholds do not help; extreme s-scores aren't more informative.
 4. The volume ("trading time") adjustment doesn't help in 2011–18, unlike AL's 2003–07 result.
+5. **Execution lag matters.** Trading one day after the signal (`execution_lag: 1`) cuts gross Sharpe by 20–45% (baseline 1.33 → 0.74; 8 factors + band 1.44 → 1.18). With realistic timing, every variant is negative net of 5 bps.
+6. **Sector-ETF factors** (`factor_model: etf`, hedges traded at 1 bp) halve stock turnover. But the residual signal is weaker (gross Sharpe 1.22), so the net result is about break-even (Sharpe +0.02 at lag 0, −0.39 at lag 1).
 
 ## Roadmap
 

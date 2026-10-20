@@ -11,6 +11,10 @@ import requests
 UNIVERSE_DIR = Path(__file__).resolve().parents[3] / "data" / "universes"
 SP500_URL = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
 
+# Select Sector SPDR ETFs that have traded since December 1998, so the hedge set is the same
+# throughout the sample. (XLRE, 2015, and XLC, 2018, are left out for that reason.)
+SECTOR_ETFS = ["XLB", "XLE", "XLF", "XLI", "XLK", "XLP", "XLU", "XLV", "XLY"]
+
 
 def fetch_sp500_current() -> pd.DataFrame:
     """Scrape today's S&P 500 constituents from Wikipedia.

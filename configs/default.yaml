@@ -21,6 +21,9 @@ strategy:
   volume_adjust: false      # AL "trading time" signal
   volume_window: 10
   rebalance_band: 0.0       # skip trades smaller than this (fraction of capital)
+  factor_model: pca         # pca (eigenportfolios, hedged in stocks) | etf (sector ETFs, hedged in ETFs)
+  etf_cost_bps: 1.0         # one-way cost of trading hedge ETFs
+  execution_lag: 0          # 0 = trade at the signal's own close (AL); 1 = next day's close
 
 evaluation:
   split_date: "2019-01-01"  # tune on data before this date; the rest is the held-out test

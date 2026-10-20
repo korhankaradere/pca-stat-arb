@@ -37,10 +37,24 @@ class StrategyConfig:
     # No-trade band: leave a stock's weight unchanged if the target is within this distance
     # (in units of capital) of the current holding. 0 disables it.
     rebalance_band: float = 0.0
+    # "pca": factors are eigenportfolios, hedged in single stocks (AL's main version).
+    # "etf": factors are sector ETF returns, hedged by trading the ETFs (AL's ETF version).
+    factor_model: str = "pca"
+    # One-way cost of trading the hedge ETFs, in bps (sector SPDRs are far cheaper than stocks).
+    etf_cost_bps: float = 1.0
+    # Days between computing a signal at a close and trading on it. 0 trades at the same close
+    # the signal used (AL's convention, optimistic); 1 trades at the next day's close.
+    execution_lag: int = 0
 
     def __post_init__(self) -> None:
         if self.hedge_mode not in ("daily", "frozen"):
             raise ValueError(f"unknown hedge_mode: {self.hedge_mode!r}")
+        if self.factor_model not in ("pca", "etf"):
+            raise ValueError(f"unknown factor_model: {self.factor_model!r}")
+        if self.factor_model == "etf" and self.hedge_mode != "daily":
+            raise ValueError("factor_model='etf' supports hedge_mode='daily' only")
+        if self.execution_lag < 0:
+            raise ValueError("execution_lag must be >= 0")
         if self.residual_window > self.pca_window:
             raise ValueError("residual_window must not exceed pca_window")
         if self.n_factors >= self.residual_window - 2:

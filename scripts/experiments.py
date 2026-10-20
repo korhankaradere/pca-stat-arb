@@ -19,7 +19,7 @@ import pandas as pd
 import yaml
 
 from pca_stat_arb import Config
-from pca_stat_arb.experiment import load_market_data, run_variant
+from pca_stat_arb.experiment import load_etf_returns, load_market_data, run_variant
 from pca_stat_arb.metrics import split_summary
 
 _DATA = {}
@@ -29,13 +29,13 @@ def _init(cfg_path):
     cfg = Config.from_yaml(cfg_path)
     _DATA["cfg"] = cfg
     _DATA["returns"], _DATA["volume"] = load_market_data(cfg)
+    _DATA["etf"] = load_etf_returns(cfg, _DATA["returns"].index)
 
 
 def _run(item):
     name, overrides = item
-    res = run_variant(_DATA["cfg"], overrides, _DATA["returns"], _DATA["volume"])
-    turnover = res.weights.diff().abs().sum(axis=1).reindex(res.pnl.index)
-    return name, res.pnl, turnover
+    res = run_variant(_DATA["cfg"], overrides, _DATA["returns"], _DATA["volume"], _DATA["etf"])
+    return name, res.pnl
 
 
 def main() -> None:
@@ -52,6 +52,9 @@ def main() -> None:
     if args.only:
         variants = {k: v for k, v in variants.items() if k in args.only}
 
+    # Fill the data cache once here, so the parallel workers only ever read it.
+    load_etf_returns(cfg, load_market_data(cfg)[0].index)
+
     with ProcessPoolExecutor(max_workers=min(len(variants), 4), initializer=_init, initargs=(args.config,)) as ex:
         results = list(ex.map(_run, (variants.items())))
 
@@ -59,20 +62,24 @@ def main() -> None:
     out.mkdir(parents=True, exist_ok=True)
     split = pd.Timestamp(cfg.evaluation.split_date)
     rows = []
-    for name, pnl, turnover in results:
+    for name, pnl in results:
         pnl.to_csv(out / f"{name}_pnl.csv")
         tbl = split_summary(pnl["net"], cfg.evaluation.split_date, include_test=args.reveal_test)
         gross = split_summary(pnl["gross"], cfg.evaluation.split_date, include_test=args.reveal_test)
+        etf_cost = (variants[name].get("etf_cost_bps", cfg.strategy.etf_cost_bps)) / 1e4
         for period in tbl.index:
-            mask = turnover.index < split if period == "in_sample" else (
-                turnover.index >= split if period == "test" else slice(None))
+            p = pnl[pnl.index < split] if period == "in_sample" else (
+                pnl[pnl.index >= split] if period == "test" else pnl)
+            stock_to, etf_to = p["stock_turnover"].mean(), p["etf_turnover"].mean()
             rows.append({
                 "variant": name, "period": period,
                 "net_sharpe": tbl.loc[period, "sharpe"], "gross_sharpe": gross.loc[period, "sharpe"],
                 "net_ann_ret": tbl.loc[period, "ann_return"], "ann_vol": tbl.loc[period, "ann_vol"],
-                "max_dd": tbl.loc[period, "max_drawdown"], "turnover": turnover[mask].mean(),
-                # One-way cost (bps) at which net P&L would be zero: gross return per unit traded.
-                "breakeven_bps": gross.loc[period, "ann_return"] / (turnover[mask].mean() * 252) * 1e4,
+                "max_dd": tbl.loc[period, "max_drawdown"],
+                "stock_turnover": stock_to, "etf_turnover": etf_to,
+                # One-way *stock* cost (bps) at which net P&L would be zero, with the ETF leg
+                # charged at its own cost: (gross - ETF costs) per unit of stock traded.
+                "breakeven_bps": (p["gross"].mean() - etf_to * etf_cost) / stock_to * 1e4,
             })
     table = pd.DataFrame(rows).set_index(["period", "variant"]).sort_index()
     table.to_csv(out / ("summary_with_test.csv" if args.reveal_test else "summary_in_sample.csv"))

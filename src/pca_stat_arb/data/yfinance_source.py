@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 
 import pandas as pd
 import yfinance as yf
@@ -29,7 +30,11 @@ class YFinanceSource(ReturnsSource):
         for field in ("Close", "Volume"):
             frame = raw[field].dropna(axis=1, how="all").sort_index()
             frame.index = pd.DatetimeIndex(frame.index).tz_localize(None)
-            frame.to_parquet(self._cache_path(field.lower(), start, end))
+            # Write then rename, so a reader never sees a half-written file.
+            path = self._cache_path(field.lower(), start, end)
+            tmp = path.with_suffix(f".tmp{os.getpid()}")
+            frame.to_parquet(tmp)
+            os.replace(tmp, path)
         missing = set(self.tickers) - set(raw["Close"].dropna(axis=1, how="all").columns)
         if missing:
             print(f"yfinance returned no data for {len(missing)} tickers: {sorted(missing)[:10]}")
