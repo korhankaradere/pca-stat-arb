@@ -83,6 +83,9 @@ def main() -> None:
             print(f"{dev}: {(time.time() - t0) / 3:.3f} s per training step")
         return
 
+    if args.device == "mps":
+        # Hard cap (~6 GB on a 16 GB Mac): fail with an error rather than push the system into swap.
+        torch.mps.set_per_process_memory_fraction(0.375)
     t0 = time.time()
     res = run_walkforward(returns, panel, dcfg, last_year=split.year - 1, device=args.device,
                           checkpoint_dir=ROOT / "results" / "deep" / "checkpoints")

@@ -20,7 +20,7 @@ class DeepConfig:
     # Training
     cost_bps: float = 5.0         # charged in the training objective, same as in evaluation
     execution_lag: int = 0        # the network is trained for the lag it will be deployed with
-    block_days: int = 126         # consecutive days per Sharpe estimate in one training step
+    block_days: int = 63          # consecutive days per Sharpe estimate in one training step (63 keeps memory ~3.4 GB)
     max_epochs: int = 60
     patience: int = 10            # early stopping on validation net Sharpe
     learning_rate: float = 1e-3

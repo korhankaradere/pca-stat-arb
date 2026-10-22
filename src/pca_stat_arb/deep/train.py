@@ -32,18 +32,29 @@ def make_tensors(X, valid, eps, Q, B, lag: int, device) -> Tensors:
     return Tensors(as_t(X), as_t(valid, torch.bool), as_t(target), as_t(Q), as_t(B))
 
 
-def portfolio_path(model, d: Tensors, days: slice, cost_bps: float):
-    """Net daily returns of the model's portfolio over consecutive `days` (differentiable)."""
+def residual_weights(model, d: Tensors, days: slice) -> torch.Tensor:
+    """The model's residual weights for consecutive `days` (differentiable)."""
     X, valid = d.X[days], d.valid[days]
     D, N, L = X.shape
     scores = torch.zeros(D, N, device=X.device)
     scores[valid] = model(X[valid])
-    w = allocate(scores, valid)                                        # residual weights
+    return allocate(scores, valid)
+
+
+def net_path(w: torch.Tensor, d: Tensors, days: slice, cost_bps: float):
+    """Net and gross daily returns of residual weights w, costs charged on the implied stock trades."""
     w_stock = w - torch.einsum("dnm,dm->dn", d.Q[days], torch.einsum("dnm,dn->dm", d.B[days], w))
     gross = (w * d.target[days]).sum(dim=1)
     turnover = (w_stock[1:] - w_stock[:-1]).abs().sum(dim=1)
     net = gross.clone()
     net[1:] = net[1:] - turnover * cost_bps / 1e4
+    return net, gross
+
+
+def portfolio_path(model, d: Tensors, days: slice, cost_bps: float):
+    """Net daily returns of the model's portfolio over consecutive `days` (differentiable)."""
+    w = residual_weights(model, d, days)
+    net, gross = net_path(w, d, days, cost_bps)
     return net, gross, w
 
 
@@ -52,9 +63,13 @@ def sharpe(x: torch.Tensor) -> torch.Tensor:
 
 
 @torch.no_grad()
-def evaluate(model, d: Tensors, days: range, cfg: DeepConfig) -> float:
+def evaluate(model, d: Tensors, days: range, cfg: DeepConfig, chunk: int = 21) -> float:
+    """Validation net Sharpe. Weights are computed a few weeks at a time to keep memory low;
+    the result is identical to scoring all days at once."""
     model.eval()
-    net, _, _ = portfolio_path(model, d, slice(days.start, days.stop), cfg.cost_bps)
+    w = torch.cat([residual_weights(model, d, slice(s, min(s + chunk, days.stop)))
+                   for s in range(days.start, days.stop, chunk)])
+    net, _ = net_path(w, d, slice(days.start, days.stop), cfg.cost_bps)
     return float(sharpe(net[1:]))
 
 
@@ -76,6 +91,8 @@ def train_one(d: Tensors, train_days: range, val_days: range, cfg: DeepConfig, s
             loss.backward()
             opt.step()
         score = evaluate(model, d, val_days, cfg)
+        if d.X.device.type == "mps":
+            torch.mps.empty_cache()  # hand cached GPU memory back to the system between epochs
         if log:
             log(f"    seed {seed} epoch {epoch:2d}  val net Sharpe {score:+.2f}")
         if score > best:

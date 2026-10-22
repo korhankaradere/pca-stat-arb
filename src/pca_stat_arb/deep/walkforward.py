@@ -72,12 +72,13 @@ def run_walkforward(
             val_scores.append(score)
             log(f"    seed {seed}: best validation net Sharpe {score:+.2f}")
         with torch.no_grad():
-            sl = slice(trade[0], trade[-1] + 1)
-            scores = torch.zeros(len(trade), N, device=device)
-            v = d.valid[sl]
-            for m in models:  # ensemble: average the members' scores
-                scores[v] += m(d.X[sl][v]) / len(models)
-            W_res[sl] = allocate(scores, v).cpu().numpy()
+            for s in range(trade[0], trade[-1] + 1, 21):  # a few weeks at a time, to keep memory low
+                sl = slice(s, min(s + 21, trade[-1] + 1))
+                v = d.valid[sl]
+                scores = torch.zeros(v.shape, device=device)
+                for m in models:  # ensemble: average the members' scores
+                    scores[v] += m(d.X[sl][v]) / len(models)
+                W_res[sl] = allocate(scores, v).cpu().numpy()
         saved[year] = [{k: v.detach().cpu() for k, v in m.state_dict().items()} for m in models]
         folds.append({"year": year, "train_start": str(dates[train.start].date()), "train_end": str(dates[train.stop - 1].date()),
                       **{f"val_sharpe_seed{s}": sc for s, sc in zip(cfg.seeds, val_scores)}})
