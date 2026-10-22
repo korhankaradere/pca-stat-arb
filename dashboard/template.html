@@ -1,0 +1,345 @@
+<title>Stat-Arb Research Desk</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* Layout: a research desk. Controls bar on top, one KPI card per strategy, then the
+   cumulative P&L chart full width, then two diagnostic charts side by side. */
+:root {
+  --bg: #f4f6f8; --surface: #ffffff; --ink: #121820; --muted: #566170; --rule: #dde2e8;
+  --accent: #2f4f7a; --accent-soft: #e6edf6;
+  --good: #1f7a3d; --good-soft: #e3f3e8; --bad: #b3361f; --bad-soft: #fbe7e2;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1419; --surface: #171e26; --ink: #eef2f6; --muted: #9aa6b4; --rule: #2a3440;
+    --accent: #8fb0dc; --accent-soft: #1d2a3a;
+    --good: #5cc97f; --good-soft: #15291c; --bad: #f08a72; --bad-soft: #321a15;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1419; --surface: #171e26; --ink: #eef2f6; --muted: #9aa6b4; --rule: #2a3440;
+  --accent: #8fb0dc; --accent-soft: #1d2a3a;
+  --good: #5cc97f; --good-soft: #15291c; --bad: #f08a72; --bad-soft: #321a15;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 48px;
+}
+.wrap { max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
+header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px 24px; }
+.eyebrow { font-family: var(--font-data); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--font-display); font-weight: 600; font-size: clamp(28px, 4vw, 40px); line-height: 1.1; margin: 4px 0 6px; text-wrap: balance; }
+.lede { margin: 0; color: var(--muted); max-width: 62ch; }
+.seal { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-data); font-size: 12px; padding: 6px 12px;
+  border-radius: 999px; background: var(--accent-soft); color: var(--accent); border: 1px solid var(--rule); white-space: nowrap; }
+.seal svg { width: 13px; height: 13px; fill: currentColor; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: center; background: var(--surface);
+  border: 1px solid var(--rule); border-radius: 10px; padding: 14px 18px; }
+.control { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.control label, .control .lab { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.cost { display: flex; align-items: center; gap: 12px; }
+.cost input { width: min(260px, 52vw); accent-color: var(--accent); }
+.cost output { font-family: var(--font-data); font-size: 18px; font-variant-numeric: tabular-nums; min-width: 6.5ch; }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+.seg button { font: inherit; font-size: 13px; border: 0; background: transparent; color: var(--ink); padding: 7px 12px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--rule); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
+.seg button:focus-visible, .cost input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.card { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px;
+  display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.card-head { display: flex; align-items: center; gap: 10px; }
+.swatch { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+.card h2 { font-family: var(--font-display); font-weight: 600; font-size: 17px; margin: 0; line-height: 1.2; }
+.big { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.big .v { font-family: var(--font-data); font-size: 34px; font-weight: 500; font-variant-numeric: tabular-nums; line-height: 1; }
+.big .k { color: var(--muted); font-size: 13px; }
+.chip { font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; }
+.chip.good { background: var(--good-soft); color: var(--good); }
+.chip.bad { background: var(--bad-soft); color: var(--bad); }
+.chip.wait { background: var(--accent-soft); color: var(--accent); }
+dl { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; margin: 0; font-size: 13px; }
+dt { color: var(--muted); }
+dd { margin: 0; font-family: var(--font-data); font-variant-numeric: tabular-nums; text-align: right; }
+.note { font-size: 12px; color: var(--muted); margin: 0; }
+
+.panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px 12px; min-width: 0; }
+.panel h3 { font-family: var(--font-display); font-weight: 600; font-size: 18px; margin: 0 0 2px; }
+.panel p.sub { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+.chart { position: relative; height: 340px; }
+.chart.short { height: 270px; }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; }
+@media (max-width: 420px) { .two { grid-template-columns: 1fr; } .chart { height: 280px; } }
+
+.findings { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.finding { border-top: 2px solid var(--ink); padding-top: 10px; }
+.finding h4 { font-family: var(--font-display); font-weight: 600; font-size: 16px; margin: 0 0 4px; }
+.finding p { margin: 0; color: var(--muted); font-size: 14px; }
+footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 14px; display: grid; gap: 6px; }
+footer p { margin: 0; max-width: 95ch; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">US equities · statistical arbitrage · in-sample 2011–2018</div>
+      <h1>Stat-Arb Research Desk</h1>
+      <p class="lede">Three market-neutral strategies on 500 S&amp;P 500 stocks. Move the cost slider and switch the execution timing to see how much of the profit survives real trading.</p>
+    </div>
+    <span class="seal" title="The 2019–2025 data is held out for one final test and is not in this page.">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1a4 4 0 0 0-4 4v2H3v8h10V7h-1V5a4 4 0 0 0-4-4zm-2.5 6V5a2.5 2.5 0 0 1 5 0v2z"/></svg>
+      2019–2025 test set sealed
+    </span>
+  </header>
+
+  <section class="controls" aria-label="Settings">
+    <div class="control">
+      <label for="cost">Stock trading cost, one way</label>
+      <div class="cost"><input id="cost" type="range" min="0" max="10" step="0.5" value="5"><output id="costOut" for="cost">5.0 bps</output></div>
+    </div>
+    <div class="control">
+      <span class="lab" id="timingLab">Execution</span>
+      <div class="seg" role="group" aria-labelledby="timingLab">
+        <button type="button" id="lag0" aria-pressed="true">At the signal's close</button>
+        <button type="button" id="lag1" aria-pressed="false">One day later</button>
+      </div>
+    </div>
+    <div class="control">
+      <span class="lab" id="periodLab">Period</span>
+      <div class="seg" role="group" aria-labelledby="periodLab">
+        <button type="button" id="pAll" aria-pressed="true">2011–2018</button>
+        <button type="button" id="p14" aria-pressed="false">2014–2018</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="cards" id="cards" aria-label="Strategy summary"></section>
+
+  <section class="panel">
+    <h3>Cumulative net profit</h3>
+    <p class="sub" id="cumSub">Percent of capital, after costs. Hover for daily values.</p>
+    <div class="chart"><canvas id="cumChart" aria-label="Cumulative net profit by strategy"></canvas></div>
+  </section>
+
+  <div class="two">
+    <section class="panel">
+      <h3>Net Sharpe vs trading cost</h3>
+      <p class="sub">Where each line crosses zero is its break-even cost. The marker shows your setting.</p>
+      <div class="chart short"><canvas id="costChart" aria-label="Net Sharpe ratio as a function of trading cost"></canvas></div>
+    </section>
+    <section class="panel">
+      <h3>Net Sharpe by year</h3>
+      <p class="sub">Consistency matters more than one good year.</p>
+      <div class="chart short"><canvas id="yearChart" aria-label="Net Sharpe ratio by year"></canvas></div>
+    </section>
+  </div>
+
+  <section class="findings" aria-label="Findings">
+    <div class="finding"><h4>The signal is real</h4><p>Before costs every strategy earns a Sharpe ratio above 1: stocks that drift away from their factor-implied path do tend to come back.</p></div>
+    <div class="finding"><h4>Costs decide the outcome</h4><p>The original strategy earns about 2.6 bps per unit traded and pays 5. Drag the cost below 2.5 bps and it turns profitable.</p></div>
+    <div class="finding"><h4>Timing is the hidden cost</h4><p>Trading one day after the signal removes 20–45% of the gross profit. Part of the apparent edge comes from the bid-ask bounce at the close.</p></div>
+  </section>
+
+  <footer>
+    <p>Data: Yahoo Finance daily closes for today's S&amp;P 500 members, so results carry survivorship bias. Capital is fixed; positions are market-neutral. Hedge ETFs are charged <span id="etfCost">1</span> bp.</p>
+    <p>Sharpe ratios are annualised from daily net P&amp;L. Break-even is the stock cost at which net P&amp;L is zero. Built <span id="built"></span> from github.com/korhankaradere/pca-stat-arb.</p>
+  </footer>
+</div>
+
+<script>
+const DATA = /*__DATA__*/null;
+const KEYS = ["deep", "pca", "pca_best"];
+const SLOT = { deep: "--s1", pca: "--s2", pca_best: "--s3" };
+const state = { cost: 5, lag: 0, from: "2011-01-01" };
+try { const s = JSON.parse(localStorage.getItem("statarb-desk") || "{}"); Object.assign(state, s); } catch (e) {}
+const save = () => { try { localStorage.setItem("statarb-desk", JSON.stringify(state)); } catch (e) {} };
+
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const minus = (s) => s.replace(/^-/, "−");
+const f = (x, d = 2) => (x == null || !isFinite(x)) ? "—" : minus(x.toFixed(d));
+
+function view(key) {
+  const s = DATA.series[`${key}_${state.lag}`];
+  if (!s) return null;
+  const etf = DATA.etf_cost_bps / 1e4, c = state.cost / 1e4;
+  const idx = [], net = [], gross = [];
+  DATA.dates.forEach((d, i) => {
+    if (d < state.from || s.gross[i] == null) return;
+    idx.push(i);
+    gross.push(s.gross[i]);
+    net.push(s.gross[i] - s.sto[i] * c - s.eto[i] * etf);
+  });
+  return { s, idx, net, gross };
+}
+const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+const sd = (a) => { const m = mean(a); return Math.sqrt(a.reduce((x, y) => x + (y - m) ** 2, 0) / (a.length - 1)); };
+const sharpe = (a) => a.length > 2 ? mean(a) / sd(a) * Math.sqrt(252) : NaN;
+
+function stats(key) {
+  const v = view(key);
+  if (!v || !v.idx.length) return null;
+  const sto = v.idx.map((i) => v.s.sto[i]), eto = v.idx.map((i) => v.s.eto[i]);
+  let cum = 0, peak = 0, dd = 0;
+  for (const x of v.net) { cum += x; peak = Math.max(peak, cum); dd = Math.min(dd, cum - peak); }
+  const be = (mean(v.gross) - mean(eto) * DATA.etf_cost_bps / 1e4) / mean(sto) * 1e4;
+  return { v, net: sharpe(v.net), gross: sharpe(v.gross), ret: mean(v.net) * 252 * 100, be, dd: dd * 100,
+           start: DATA.dates[v.idx[0]].slice(0, 4) };
+}
+
+function renderCards() {
+  const host = document.getElementById("cards");
+  host.innerHTML = "";
+  for (const key of KEYS) {
+    const meta = DATA.strategies[key], st = stats(key);
+    const card = document.createElement("article");
+    card.className = "card";
+    const head = `<div class="card-head"><span class="swatch" style="background:var(${SLOT[key]})"></span><h2>${meta.label}</h2></div>`;
+    if (!st) {
+      card.innerHTML = head + `<div class="big"><span class="v">—</span><span class="chip wait">Training in progress</span></div>
+        <p class="note">The walk-forward run is training on the Apple GPU. Results appear here when it finishes.</p>`;
+    } else {
+      const ok = st.net > 0;
+      card.innerHTML = head + `
+        <div class="big"><span class="v">${f(st.net)}</span><span class="k">net Sharpe</span>
+          <span class="chip ${ok ? "good" : "bad"}">${ok ? "Profitable at this cost" : "Loses money at this cost"}</span></div>
+        <dl>
+          <dt>Gross Sharpe (before costs)</dt><dd>${f(st.gross)}</dd>
+          <dt>Net return per year</dt><dd>${f(st.ret, 1)}%</dd>
+          <dt>Break-even cost</dt><dd>${f(st.be, 1)} bps</dd>
+          <dt>Max drawdown</dt><dd>${f(st.dd, 1)}%</dd>
+        </dl>
+        <p class="note">${meta.note}${st.start > state.from.slice(0, 4) ? ` Trades from ${st.start}.` : ""}</p>`;
+    }
+    host.appendChild(card);
+  }
+}
+
+Chart.defaults.animation = false;
+let charts = {};
+function baseOpts(ink, muted, rule) {
+  return {
+    responsive: true, maintainAspectRatio: false, interaction: { mode: "index", intersect: false },
+    plugins: {
+      legend: { position: "top", align: "start", labels: { color: ink, boxWidth: 12, boxHeight: 12, font: { family: css("--font-body") } } },
+      tooltip: { backgroundColor: css("--surface"), titleColor: ink, bodyColor: ink, borderColor: rule, borderWidth: 1,
+                 bodyFont: { family: css("--font-data") }, titleFont: { family: css("--font-body") } },
+    },
+    scales: {
+      x: { grid: { color: rule, drawTicks: false }, ticks: { color: muted, font: { family: css("--font-data"), size: 11 } }, border: { color: rule } },
+      y: { grid: { color: rule }, ticks: { color: muted, font: { family: css("--font-data"), size: 11 } }, border: { display: false } },
+    },
+  };
+}
+
+function render() {
+  document.getElementById("costOut").textContent = `${state.cost.toFixed(1)} bps`;
+  document.getElementById("cost").value = state.cost;
+  for (const [id, on] of [["lag0", state.lag === 0], ["lag1", state.lag === 1], ["pAll", state.from === "2011-01-01"], ["p14", state.from === "2014-01-01"]])
+    document.getElementById(id).setAttribute("aria-pressed", String(on));
+  renderCards();
+
+  const ink = css("--ink"), muted = css("--muted"), rule = css("--rule");
+  const avail = KEYS.filter((k) => stats(k));
+
+  // Cumulative net P&L, x = trading-day index, ticks at the first day of each year.
+  const first = DATA.dates.findIndex((d) => d >= state.from);
+  const yearStarts = [];
+  DATA.dates.forEach((d, i) => { if (i >= first && (i === first || d.slice(0, 4) !== DATA.dates[i - 1].slice(0, 4))) yearStarts.push(i); });
+  const cumSets = avail.map((key) => {
+    const v = view(key); let c = 0;
+    return { label: DATA.strategies[key].label, data: v.idx.map((i, j) => ({ x: i, y: (c += v.net[j]) * 100 })),
+             borderColor: css(SLOT[key]), backgroundColor: css(SLOT[key]), borderWidth: 2, pointRadius: 0, pointHoverRadius: 4 };
+  });
+  const cumOpts = baseOpts(ink, muted, rule);
+  cumOpts.parsing = false;
+  cumOpts.scales.x.type = "linear";
+  cumOpts.scales.x.min = first; cumOpts.scales.x.max = DATA.dates.length - 1;
+  cumOpts.scales.x.afterBuildTicks = (axis) => { axis.ticks = yearStarts.map((v) => ({ value: v })); };
+  cumOpts.scales.x.ticks.callback = (v) => DATA.dates[v] ? DATA.dates[v].slice(0, 4) : "";
+  cumOpts.scales.y.ticks.callback = (v) => minus(`${v}%`);
+  cumOpts.plugins.tooltip.callbacks = {
+    title: (items) => items.length ? DATA.dates[items[0].parsed.x] : "",
+    label: (it) => ` ${it.dataset.label}: ${f(it.parsed.y, 1)}%`,
+  };
+  cumOpts.plugins.zeroLine = { color: muted };
+  draw("cumChart", { type: "line", data: { datasets: cumSets }, options: cumOpts, plugins: [zeroLine] });
+
+  // Net Sharpe against cost, with a marker at the chosen cost.
+  const grid = Array.from({ length: 41 }, (_, i) => i * 0.25);
+  const costSets = avail.map((key) => {
+    const v = view(key), etf = DATA.etf_cost_bps / 1e4;
+    return { label: DATA.strategies[key].label, borderColor: css(SLOT[key]), backgroundColor: css(SLOT[key]), borderWidth: 2, pointRadius: 0, pointHoverRadius: 4,
+      data: grid.map((c) => ({ x: c, y: sharpe(v.idx.map((i) => v.s.gross[i] - v.s.sto[i] * c / 1e4 - v.s.eto[i] * etf)) })) };
+  });
+  const costOpts = baseOpts(ink, muted, rule);
+  costOpts.parsing = false;
+  costOpts.scales.x.type = "linear"; costOpts.scales.x.min = 0; costOpts.scales.x.max = 10;
+  costOpts.scales.x.title = { display: true, text: "one-way stock cost (bps)", color: muted };
+  costOpts.scales.x.ticks.stepSize = 1;
+  costOpts.scales.y.ticks.callback = (v) => minus(String(v));
+  costOpts.plugins.tooltip.callbacks = { title: (it) => it.length ? `${it[0].parsed.x.toFixed(2)} bps` : "", label: (it) => ` ${it.dataset.label}: ${f(it.parsed.y)}` };
+  costOpts.plugins.marker = { x: state.cost, color: ink };
+  costOpts.plugins.zeroLine = { color: muted };
+  draw("costChart", { type: "line", data: { datasets: costSets }, options: costOpts, plugins: [zeroLine, marker] });
+
+  // Net Sharpe per calendar year.
+  const years = [...new Set(DATA.dates.filter((d) => d >= state.from).map((d) => d.slice(0, 4)))];
+  const yearSets = avail.map((key) => {
+    const v = view(key);
+    return { label: DATA.strategies[key].label, backgroundColor: css(SLOT[key]), borderRadius: 4, borderSkipped: "start", maxBarThickness: 26,
+      data: years.map((y) => { const xs = v.net.filter((_, j) => DATA.dates[v.idx[j]].startsWith(y)); return xs.length > 20 ? sharpe(xs) : null; }) };
+  });
+  const yearOpts = baseOpts(ink, muted, rule);
+  yearOpts.scales.y.ticks.callback = (v) => minus(String(v));
+  yearOpts.plugins.tooltip.callbacks = { label: (it) => ` ${it.dataset.label}: ${f(it.parsed.y)}` };
+  yearOpts.plugins.zeroLine = { color: muted };
+  draw("yearChart", { type: "bar", data: { labels: years, datasets: yearSets }, options: yearOpts, plugins: [zeroLine] });
+
+  document.getElementById("cumSub").textContent =
+    `Percent of capital, after ${state.cost.toFixed(1)} bps costs, trading ${state.lag ? "one day after" : "at"} the signal's close. Hover for daily values.`;
+}
+
+const zeroLine = { id: "zeroLine", afterDraw(c, _a, o) {
+  const y = c.scales.y; if (!y || y.min > 0 || y.max < 0) return;
+  const ctx = c.ctx, p = y.getPixelForValue(0);
+  ctx.save(); ctx.strokeStyle = o.color; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(c.chartArea.left, p); ctx.lineTo(c.chartArea.right, p); ctx.stroke(); ctx.restore();
+} };
+const marker = { id: "marker", afterDraw(c, _a, o) {
+  const x = c.scales.x.getPixelForValue(o.x), ctx = c.ctx;
+  ctx.save(); ctx.setLineDash([4, 4]); ctx.strokeStyle = o.color; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x, c.chartArea.top); ctx.lineTo(x, c.chartArea.bottom); ctx.stroke();
+  ctx.setLineDash([]); ctx.fillStyle = o.color; ctx.font = `12px ${css("--font-data")}`;
+  ctx.textAlign = x > c.chartArea.right - 70 ? "right" : "left";
+  ctx.fillText(`${o.x.toFixed(1)} bps`, x + (ctx.textAlign === "left" ? 6 : -6), c.chartArea.top + 12); ctx.restore();
+} };
+
+function draw(id, config) {
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(document.getElementById(id), config);
+}
+
+document.getElementById("cost").addEventListener("input", (e) => { state.cost = Number(e.target.value); save(); render(); });
+for (const [id, fn] of [["lag0", () => (state.lag = 0)], ["lag1", () => (state.lag = 1)], ["pAll", () => (state.from = "2011-01-01")], ["p14", () => (state.from = "2014-01-01")]])
+  document.getElementById(id).addEventListener("click", () => { fn(); save(); render(); });
+document.getElementById("etfCost").textContent = DATA.etf_cost_bps;
+document.getElementById("built").textContent = DATA.generated;
+
+// Re-colour the charts when the viewer switches theme.
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+if (document.fonts) document.fonts.ready.then(render);
+render();
+</script>

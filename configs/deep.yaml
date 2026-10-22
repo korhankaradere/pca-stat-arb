@@ -1,0 +1,5 @@
+# Deep-learning strategy runs (scripts/deep_walkforward.py). Architecture and training settings
+# are fixed in pca_stat_arb/deep/config.py; only the execution lag differs between runs.
+variants:
+  deep_lag0: {model: deep_cnn_transformer, execution_lag: 0}
+  deep_lag1: {model: deep_cnn_transformer, execution_lag: 1}

@@ -12,3 +12,6 @@ report/main.pdf
 
 # Licensed data (e.g. CRSP via WRDS) must never be committed
 data/raw/
+
+# Generated: rebuild with scripts/build_dashboard.py
+dashboard/index.html

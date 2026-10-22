@@ -12,6 +12,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
+from pca_stat_arb.accounting import delay, pnl_from_holdings
 from pca_stat_arb.config import StrategyConfig
 from pca_stat_arb.pca import fit_eigenportfolios
 from pca_stat_arb.residuals import fit_residuals, s_scores
@@ -151,31 +152,16 @@ def run_backtest(
         if progress and t % 250 == 0:
             print(f"{returns.index[t].date()}  universe={idx.size}  open={np.count_nonzero(state)}")
 
-    # Execution lag: holdings decided at close t are only in place from close t+lag.
-    if cfg.execution_lag:
-        weights = _delay(weights, cfg.execution_lag)
-        if use_etf:
-            etf_hold = _delay(etf_hold, cfg.execution_lag)
-
-    # P&L: holdings in place at close t earn the return of t+1. A missing next-day return
-    # (e.g. delisting in yfinance data) is treated as 0, which is optimistic; CRSP fixes this.
-    gross = np.zeros(T)
-    gross[1:] = (weights[:-1] * np.nan_to_num(R[1:])).sum(axis=1)
-    stock_to = np.zeros(T)
-    stock_to[1:] = np.abs(np.diff(weights, axis=0, prepend=0.0)).sum(axis=1)[:-1]
-    etf_to = np.zeros(T)
-    if use_etf:
-        gross[1:] += (etf_hold[:-1] * np.nan_to_num(E[1:])).sum(axis=1)
-        etf_to[1:] = np.abs(np.diff(etf_hold, axis=0, prepend=0.0)).sum(axis=1)[:-1]
-    # Trades at close t are charged on day t+1's P&L.
-    cost = stock_to * cfg.cost_bps / 1e4 + etf_to * cfg.etf_cost_bps / 1e4
-
     idx_dates = returns.index
-    pnl = pd.DataFrame(
-        {"gross": gross, "cost": cost, "net": gross - cost, "stock_turnover": stock_to, "etf_turnover": etf_to},
-        index=idx_dates,
-    )
-    pnl = pnl.iloc[W:]  # first day with a possible position return
+    pnl = pnl_from_holdings(
+        idx_dates, R, weights, cfg.cost_bps,
+        etf_returns=E if use_etf else None, etf_weights=etf_hold if use_etf else None,
+        etf_cost_bps=cfg.etf_cost_bps, execution_lag=cfg.execution_lag,
+    ).iloc[W:]  # first day with a possible position return
+    # Report the holdings actually in place, after any execution lag.
+    weights = delay(weights, cfg.execution_lag)
+    if use_etf:
+        etf_hold = delay(etf_hold, cfg.execution_lag)
 
     return BacktestResult(
         weights=pd.DataFrame(weights, index=idx_dates, columns=returns.columns),
@@ -186,9 +172,3 @@ def run_backtest(
         etf_weights=pd.DataFrame(etf_hold, index=idx_dates, columns=etf_returns.columns) if use_etf else None,
     )
 
-
-def _delay(holdings: np.ndarray, lag: int) -> np.ndarray:
-    """Shift holdings `lag` rows later; nothing is held during the first `lag` rows."""
-    out = np.zeros_like(holdings)
-    out[lag:] = holdings[:-lag]
-    return out
