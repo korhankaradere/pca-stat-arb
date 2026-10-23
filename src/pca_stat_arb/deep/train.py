@@ -90,9 +90,14 @@ def train_one(d: Tensors, train_days: range, val_days: range, cfg: DeepConfig, s
             opt.zero_grad()
             loss.backward()
             opt.step()
+            del net, loss
+            if d.X.device.type == "mps":
+                # PyTorch keeps freed GPU blocks cached; on Apple's unified memory that cache is
+                # system RAM. Release it every step so the process stays near its true ~3.4 GB peak.
+                torch.mps.empty_cache()
         score = evaluate(model, d, val_days, cfg)
         if d.X.device.type == "mps":
-            torch.mps.empty_cache()  # hand cached GPU memory back to the system between epochs
+            torch.mps.empty_cache()
         if log:
             log(f"    seed {seed} epoch {epoch:2d}  val net Sharpe {score:+.2f}")
         if score > best:
