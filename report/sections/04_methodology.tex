@@ -4,6 +4,11 @@
 The strategy is re-estimated at the close of every trading day $t$ using only returns up to and
 including day $t$. \Cref{tab:params} lists the parameters and their baseline values, which
 follow AL. \Cref{alg:daily} summarises one day of the procedure.
+\Cref{sec:method:pca,sec:method:regression,sec:method:ou,sec:method:sscore,sec:method:rule,sec:method:portfolio}
+describe AL's strategy. \Cref{sec:method:etf} describes the sector-ETF factor model,
+\cref{sec:method:costs} the cost-reduction mechanisms, \cref{sec:method:accounting} the common
+accounting (including execution lag), and \cref{sec:method:deep} the deep-learning signal
+extractor that replaces the OU model and trading rule.
 
 \begin{table}[ht]
 \centering
@@ -21,8 +26,11 @@ $\bar s_{\text{open}}$ & entry threshold & 1.25 \\
 $\bar s_{\text{cl}}$ & exit threshold, longs & 0.50 \\
 $\bar s_{\text{cs}}$ & exit threshold, shorts & 0.75 \\
 $q$ & notional per position (fraction of capital) & 0.01 \\
-$c$ & one-way transaction cost & 5~bps \\
+$c_s$ & one-way transaction cost, stocks & 5~bps \\
+$c_e$ & one-way transaction cost, hedge ETFs (ETF model only) & 1~bp \\
 $\delta$ & no-trade band (fraction of capital) & 0 (off) \\
+$k$ & execution lag (trading days after the signal) & 0 \\
+-- & factor model & PCA \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -166,6 +174,36 @@ $\tau_i$ and held unchanged until the position is closed. Net holdings are then
 $\bm w + \sum_i \bm h_i$. The trading signals are identical in both modes. Only the hedge
 differs.
 
+\subsection{Sector-ETF factor model}
+\label{sec:method:etf}
+
+AL also propose using traded sector ETFs as factors instead of eigenportfolios. We use the nine
+Select Sector SPDR ETFs that trade throughout the sample (XLB, XLE, XLF, XLI, XLK, XLP, XLU, XLV,
+XLY). Let $E_{js}$ be the return of ETF $j$ on day $s$. \Cref{eq:regression} becomes
+\begin{equation}
+  R_{is} = \alpha_i + \sum_{j=1}^{9} \beta_{ij} E_{js} + \varepsilon_{is},
+  \qquad s = t-L+1,\dots,t ,
+  \label{eq:etf-regression}
+\end{equation}
+and the residual process, s-score and trading rule are unchanged
+(\cref{sec:method:ou,sec:method:sscore,sec:method:rule}). The universe rule is also unchanged (a
+complete $M$-day history). If any ETF return in the regression window is missing, all positions are
+closed for that day, the same treatment as a day on which too few stocks are tradable.
+
+The hedge is different. An ETF return $E_j$ is the return of one dollar held in ETF $j$, so
+selling $\beta_{ij} w_i$ dollars of each ETF neutralises position $i$. The whole book is then held
+as stock positions $\bm w$ plus a single netted ETF position,
+\begin{equation}
+  \bm w^{\text{stock}} = \bm w, \qquad \bm h = -B^\top \bm w \in \mathbb R^{9},
+  \label{eq:etf-hedge}
+\end{equation}
+instead of the dense stock-space basket of \cref{eq:netting}. Within the window the book earns
+$\bm w^\top \bm R + \bm h^\top \bm E = \sum_i w_i(\alpha_i + \varepsilon_i)$, the same
+residual-only exposure as before. The ETF holdings are re-evaluated daily (frozen hedges are not
+used with this model), and the no-trade band, when active, applies to them as well. Because the
+ETFs are among the most liquid instruments in the market, their trades are charged a separate,
+lower cost $c_e$ (\cref{sec:method:accounting}).
+
 \subsection{Cost-reduction mechanisms}
 \label{sec:method:costs}
 
@@ -189,7 +227,8 @@ $w_{k,t-1}$, each stock is traded only if its required adjustment exceeds the ba
 \end{equation}
 This is a simple form of the no-trade region that is optimal under proportional costs
 \citep{davis1990}. It removes the many small hedge adjustments spread across all stocks, at the
-price of a small tracking error to the target.
+price of a small tracking error to the target. One exception: a stock that leaves the universe
+because its price is missing is set to zero rather than kept at a stale weight.
 
 \paragraph{Fewer factors.}
 Every eigenportfolio holds a position in every stock. So each factor hedged adds a basket trade
@@ -200,27 +239,49 @@ in \cref{sec:results:factors}.
 \subsection{Backtest accounting}
 \label{sec:method:accounting}
 
-Holdings determined at the close of day $t$ earn the returns of day $t+1$, so no information from
-day $t+1$ is used to form them. Capital is fixed at one unit, without compounding, as in AL.
-Daily P\&L, as a fraction of capital, is
+All strategies in this report, including the deep-learning model, are scored by the same
+accounting. Let $\bm w^\ast_t$ (stocks) and $\bm h^\ast_t$ (ETFs, zero for the PCA model) be the
+holdings \emph{decided} at the close of day $t$, using information up to $t$ only.
+
+\paragraph{Execution lag.} With an execution lag of $k$ trading days, the holdings \emph{in
+place} at close $t$ are those decided $k$ days earlier,
+\begin{equation}
+  \bm w_t = \bm w^\ast_{t-k}, \qquad \bm h_t = \bm h^\ast_{t-k},
+  \label{eq:lag}
+\end{equation}
+with nothing held during the first $k$ days. With $k=0$ (AL's convention), a position is traded
+at the same closing price that was used to compute its signal. This cannot be achieved in
+practice, since the closing price is only known once the close has happened. It also benefits
+from bid--ask bounce: a closing print at the bid or the ask creates an apparent reversal that a
+reversal strategy then ``captures''. With $k=1$, the position is traded at the next day's close.
+Signals, and therefore the states $\theta_{it}$, are identical for every $k$; only the timing of
+the holdings changes.
+
+\paragraph{P\&L and costs.} Capital is fixed at one unit, without compounding, as in AL. Holdings
+in place at close $t$ earn the returns of day $t+1$, and trades made at close $t$ are charged on
+day $t+1$:
 \begin{align}
-  \text{gross}_{t+1} &= \sum_k w_{kt}\, R_{k,t+1}, \\
-  \text{cost}_{t+1} &= c \sum_k \left| w_{kt} - w_{k,t-1} \right|, \\
+  \text{gross}_{t+1} &= \bm w_t^\top \bm R_{t+1} + \bm h_t^\top \bm E_{t+1}, \\
+  \text{TO}^{s}_{t} &= \|\bm w_t - \bm w_{t-1}\|_1, \qquad
+  \text{TO}^{e}_{t} = \|\bm h_t - \bm h_{t-1}\|_1, \\
+  \text{cost}_{t+1} &= c_s\,\text{TO}^{s}_{t} + c_e\,\text{TO}^{e}_{t}, \\
   \text{net}_{t+1} &= \text{gross}_{t+1} - \text{cost}_{t+1}.
 \end{align}
-The quantity $\text{TO}_t = \sum_k |w_{kt} - w_{k,t-1}|$ is the daily one-way turnover. A missing
-next-day return of a held stock (for example after a delisting) is treated as zero.
+$\text{TO}^s$ and $\text{TO}^e$ are the daily one-way turnovers of the stock and ETF legs. A
+missing next-day return of a held stock (for example after a delisting) is treated as zero.
 
-Annualised return and volatility are $252$ times the mean and $\sqrt{252}$ times the standard
-deviation of daily net P\&L, and the Sharpe ratio is their ratio. Because the strategy is
-market-neutral and self-financing apart from margin, no risk-free rate is subtracted. We also
-report the \emph{break-even cost}
+\paragraph{Statistics.} Annualised return and volatility are $252$ times the mean and
+$\sqrt{252}$ times the standard deviation of daily net P\&L, and the Sharpe ratio is their ratio.
+Because the strategy is market-neutral and self-financing apart from margin, no risk-free rate
+is subtracted. We also report the \emph{break-even cost}: the one-way stock cost at which net
+P\&L would be zero, with any ETF leg still charged at $c_e$,
 \begin{equation}
-  c^\ast = \frac{\overline{\text{gross}}}{\overline{\text{TO}}},
+  c^\ast = \frac{\overline{\text{gross}} - c_e\,\overline{\text{TO}^{e}}}{\overline{\text{TO}^{s}}} .
   \label{eq:breakeven}
 \end{equation}
-the one-way cost at which net P\&L would be zero. It measures the gross edge per unit of capital
-traded and is the most direct summary of whether a variant can survive costs.
+For the PCA model ($\text{TO}^e = 0$) this is simply gross return per unit of capital traded.
+It measures the edge per trade and is the most direct summary of whether a variant can survive
+costs.
 
 \begin{algorithm}[ht]
 \caption{One trading day $t$ of the strategy}
@@ -228,13 +289,151 @@ traded and is the most direct summary of whether a variant can survive costs.
 \begin{algorithmic}[1]
 \State $\mathcal U_t \gets$ stocks with complete returns over $[t-M+1, t]$
 \State $Q \gets$ eigenportfolio weights from the top $m$ eigenvectors of $\rho$ \Comment{\cref{eq:eigenportfolio}}
-\State $F \gets R_{[t-L+1,t],\,\mathcal U_t}\, Q$ \Comment{factor returns, $L\times m$}
+\State $F \gets R_{[t-L+1,t],\,\mathcal U_t}\, Q$ \Comment{factor returns, $L\times m$; ETF model: $F \gets E$}
 \State $(\bm\alpha, B, \bm\varepsilon) \gets$ least squares of $R$ on $[\bm 1, F]$ \Comment{\cref{eq:regression}}
 \State $X \gets \operatorname{cumsum}(\bm\varepsilon)$; fit AR(1); compute $\kappa, m, \sigma_{\text{eq}}$ \Comment{\cref{eq:ar1,eq:ou-params}}
 \State $\bm s \gets$ s-scores, NaN where $\kappa < \kappa_{\min}$ \Comment{\cref{eq:sscore}}
 \State $\bm\theta_t \gets$ update states with the rule of \cref{tab:rule}
-\State $\bm w^\ast \gets q\bm\theta_t - Q B^\top q\bm\theta_t$ \Comment{or frozen hedges}
-\State $\bm w_t \gets$ apply the no-trade band to $\bm w^\ast$ \Comment{\cref{eq:band}}
-\State earn $\bm w_t^\top R_{t+1}$; pay $c\,\|\bm w_t - \bm w_{t-1}\|_1$
+\State $\bm w^\ast_t \gets q\bm\theta_t - Q B^\top q\bm\theta_t$ \Comment{or frozen hedges; ETF model: \cref{eq:etf-hedge}}
+\State apply the no-trade band to $\bm w^\ast_t$ \Comment{\cref{eq:band}}
+\State hold $\bm w_t = \bm w^\ast_{t-k}$; earn $\bm w_t^\top \bm R_{t+1}$; pay $c_s\|\bm w_t - \bm w_{t-1}\|_1$ \Comment{\cref{eq:lag}}
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Deep-learning signal extractor}
+\label{sec:method:deep}
+
+The AL strategy imposes a parametric model on the residual (an OU process) and a fixed,
+hand-chosen trading rule. Following \citet{guijarro2021}, we replace both with a neural network
+that maps each stock's recent residual path directly to a position, trained to maximise the
+net-of-cost Sharpe ratio. The factor model is kept, so the network sees exactly the residuals
+that the AL rule trades.
+
+\paragraph{Out-of-sample residual returns.}
+The residuals of \cref{eq:regression} are in-sample: they are fitted on the same window they
+describe. For training, every residual must be one that could have been traded. At each close
+$t$, a PCA factor model with $m=8$ factors is fitted (\cref{sec:method:pca,sec:method:regression},
+$M=252$, $L=60$), giving eigenportfolio weights $Q_t$ and betas $B_t$ for the stocks in
+$\mathcal U_t$. The residual return of day $t+1$ then uses only these already-known loadings:
+\begin{equation}
+  \bm\varepsilon_{t+1} = \bm R_{t+1} - B_t\bigl(Q_t^\top \bm R_{t+1}\bigr),
+  \label{eq:oos-residual}
+\end{equation}
+where $Q_t^\top \bm R_{t+1}$ is the realised return of the $m$ eigenportfolios. The choice $m=8$
+matches the number of correlation eigenvalues above the Marchenko--Pastur edge found in-sample
+(\cref{sec:results:factors-structure}).
+
+\paragraph{Residual positions are real portfolios.}
+A vector of residual weights $\bm w$ chosen at close $t$ corresponds to the stock holdings
+\begin{equation}
+  \bm w^{\text{stock}} = \bm w - Q_t B_t^\top \bm w ,
+  \label{eq:deep-stock}
+\end{equation}
+the same netting as \cref{eq:netting}. These holdings earn
+$(\bm w^{\text{stock}})^\top \bm R_{t+1} = \bm w^\top \bm R_{t+1} - \bm w^\top B_t Q_t^\top \bm R_{t+1}
+= \bm w^\top \bm\varepsilon_{t+1}$ exactly. So the network can be trained on residual returns
+while its P\&L and trading costs are computed on the stock trades it implies. A test verifies this
+identity numerically (\cref{sec:impl:tests}).
+
+\paragraph{Inputs.}
+For each stock $i$ that is in $\mathcal U_t$ and has no missing residual in the last
+$\ell = 30$ days, the input is its cumulative residual path over those days,
+\begin{equation}
+  x_{i,\tau} = \frac{1}{\varsigma_t} \sum_{u=t-\ell+1}^{t-\ell+\tau} \varepsilon_{iu},
+  \qquad \tau = 1,\dots,\ell,
+  \label{eq:deep-input}
+\end{equation}
+where $\varsigma_t$ is the standard deviation of all such path values across stocks and lags on day
+$t$. This single scale per day makes inputs comparable across calm and volatile periods while
+keeping the relative sizes of different stocks' deviations. All inputs are known at close $t$.
+
+\paragraph{Architecture.}
+The network $f_\theta : \mathbb R^{\ell} \to \mathbb R$ is applied to each stock's path
+independently, with the same parameters for every stock:
+\begin{enumerate}
+  \item \emph{Convolutional blocks.} Two 1-D convolution blocks with 8 filters and kernel size 2.
+        Each output at lag $\tau$ depends only on lags $\tau-1$ and $\tau$ (the extra padded step is
+        dropped), followed by instance normalisation, a ReLU, and a residual connection (a $1\times1$
+        convolution where the channel count changes). These blocks extract local shape features of
+        the path, such as jumps, short trends and kinks.
+  \item \emph{Transformer encoder.} A learned positional embedding
+        ($\ell \times 8$) is added, and one Transformer encoder layer with model width 8, 4
+        attention heads, feed-forward width 16 and dropout 0.25 lets each point of the path attend to
+        every other. This relates, for example, a recent drop to the level several weeks earlier.
+  \item \emph{Head.} A linear map of the final time step's 8 features gives the score
+        $f_\theta(\bm x_i)$.
+\end{enumerate}
+The network has 1{,}025 parameters. Its size and all other settings below were fixed in advance
+rather than tuned, so each execution lag counts as a single trial in the multiple-testing
+accounting.
+
+\paragraph{Allocation.}
+Scores are normalised to unit gross exposure in residual space each day:
+\begin{equation}
+  w_{it} = \frac{f_\theta(\bm x_{it})}{\sum_{k \in \mathcal V_t} |f_\theta(\bm x_{kt})|},
+  \qquad i \in \mathcal V_t ,
+  \label{eq:deep-alloc}
+\end{equation}
+and $w_{it} = 0$ outside the set $\mathcal V_t$ of stocks with valid inputs. Unlike the AL rule,
+positions are continuous: the network decides both the direction and the relative size of every
+position, every day.
+
+\paragraph{Training objective.}
+For execution lag $k$, a residual position decided at close $t$ earns $\varepsilon_{t+1+k}$. Over
+a block of $D$ consecutive days, the daily net returns are
+\begin{equation}
+  r_{t+1} = \bm w_t^\top \bm\varepsilon_{t+1+k} - c_s\,\bigl\|\bm w^{\text{stock}}_t - \bm w^{\text{stock}}_{t-1}\bigr\|_1 ,
+  \label{eq:deep-net}
+\end{equation}
+with stock holdings from \cref{eq:deep-stock} and $c_s = 5$~bps, the same cost as in evaluation.
+The loss is the negative annualised Sharpe ratio of these returns,
+\begin{equation}
+  \mathcal L(\theta) = -\sqrt{252}\;\frac{\operatorname{mean}(r)}{\operatorname{sd}(r)} ,
+  \label{eq:deep-loss}
+\end{equation}
+computed on blocks of $D = 63$ days whose start dates are spaced 31 days apart and visited in random
+order each epoch. Because costs enter the loss through the implied stock turnover, the network is
+directly penalised for trading too much: it is trained against the very problem that defeats the
+AL rule. Optimisation uses Adam (learning rate $10^{-3}$) for up to 60 epochs.
+
+\paragraph{Validation and ensembling.}
+The last 252 trading days before each training cut-off are held out for validation. After every
+epoch the net Sharpe ratio (\cref{eq:deep-net}) is computed on the validation days, and the
+parameters from the best epoch are kept. Training stops after 10 epochs without improvement, and
+the untrained network is the starting benchmark, so the selected model is always well defined.
+Three networks with different random seeds are trained, and their scores are averaged before
+the allocation step (\cref{eq:deep-alloc}).
+
+\paragraph{Walk-forward protocol.}
+The model is retrained once a year and then traded, frozen, for that year
+(\cref{alg:walkforward}). Labels must be known before the trading year starts: a decision at
+close $t$ is labelled with $\varepsilon_{t+1+k}$, so the last usable decision day is $1+k$ days
+before the year begins. The same gap separates the training and validation periods. Training
+always starts on the first day with complete inputs (15~February 2011, after the 252-day factor
+window and the 30-day input window). The first trading year is 2014, which leaves almost two years
+of training data (15~February 2011 to the end of 2012) for the first model. All data from the evaluation split date onwards are removed before any
+of this begins.
+
+\paragraph{Evaluation.}
+The ensemble's residual weights are converted to stock holdings with \cref{eq:deep-stock} and
+scored with exactly the accounting of \cref{sec:method:accounting}, including the execution lag
+\cref{eq:lag}. The deep model and the AL strategies are therefore compared under identical rules.
+
+\begin{algorithm}[ht]
+\caption{Walk-forward training and trading of the deep model (execution lag $k$)}
+\label{alg:walkforward}
+\begin{algorithmic}[1]
+\State build $\bm\varepsilon_{t}$ for all $t$ (\cref{eq:oos-residual}) and inputs $\bm x_{it}$ (\cref{eq:deep-input})
+\For{each trading year $y = 2014,\dots,2018$}
+  \State $t_0 \gets$ first trading day of $y$; \quad $t_v \gets t_0 - (1+k)$ \Comment{last decision day with a known label}
+  \State validation days $\gets$ the 252 days ending at $t_v$; training days $\gets$ from 15 Feb 2011 to $1+k$ days before validation
+  \For{seed $= 0, 1, 2$}
+    \State train $f_\theta$ on 63-day blocks to minimise \cref{eq:deep-loss}; keep the best-validation epoch
+  \EndFor
+  \For{each day $t$ in year $y$}
+    \State score each valid stock with the ensemble mean; allocate by \cref{eq:deep-alloc}
+    \State hold $\bm w^{\text{stock}}_t$ (\cref{eq:deep-stock}), lagged by $k$; score with \cref{sec:method:accounting}
+  \EndFor
+\EndFor
 \end{algorithmic}
 \end{algorithm}
