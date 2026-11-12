@@ -84,7 +84,7 @@ dd { margin: 0; font-family: var(--font-data); font-variant-numeric: tabular-num
 .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; }
 @media (max-width: 420px) { .two { grid-template-columns: 1fr; } .chart { height: 280px; } }
 
-.findings { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.findings { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
 .finding { border-top: 2px solid var(--ink); padding-top: 10px; }
 .finding h4 { font-family: var(--font-display); font-weight: 600; font-size: 16px; margin: 0 0 4px; }
 .finding p { margin: 0; color: var(--muted); font-size: 14px; }
@@ -151,6 +151,7 @@ footer p { margin: 0; max-width: 95ch; }
     <div class="finding"><h4>The signal is real</h4><p>Before costs every strategy earns a Sharpe ratio above 1: stocks that drift away from their factor-implied path do tend to come back.</p></div>
     <div class="finding"><h4>Costs decide the outcome</h4><p>The original strategy earns about 2.6 bps per unit traded and pays 5. Drag the cost below 2.5 bps and it turns profitable.</p></div>
     <div class="finding"><h4>Timing is the hidden cost</h4><p>Trading one day after the signal removes 20–45% of the gross profit. Part of the apparent edge comes from the bid-ask bounce at the close.</p></div>
+    <div class="finding"><h4>Learning helps, but not enough</h4><p>The deep model trades a seventh as much and loses only 13% to the delay. It breaks even near 4 bps, still short of 5, and about half of its delayed edge is a long tilt rather than reversal.</p></div>
   </section>
 
   <footer>
