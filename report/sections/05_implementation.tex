@@ -38,7 +38,9 @@ Module & Responsibility \\
 \code{pca} & eigenportfolios (\cref{sec:method:pca}) \\
 \code{residuals} & factor regression, OU fit, s-scores (\cref{sec:method:regression,sec:method:ou,sec:method:sscore}) \\
 \code{signals} & trading rule (\cref{sec:method:rule}) \\
-\code{backtest} & daily loop, hedging, costs (\cref{sec:method:portfolio,sec:method:costs,sec:method:accounting}) \\
+\code{backtest} & daily loop: PCA or ETF factors, hedging, no-trade band (\cref{sec:method:portfolio,sec:method:etf,sec:method:costs}) \\
+\code{accounting} & shared P\&L engine: execution lag, stock and ETF costs (\cref{sec:method:accounting}) \\
+\code{deep.*} & residual panel, CNN--Transformer, net-Sharpe training, walk-forward (\cref{sec:method:deep}) \\
 \code{metrics} & performance statistics, in-sample/test split \\
 \code{scripts/experiments.py} & parallel variant runner, in-sample by default \\
 \code{scripts/make\_report\_assets.py} & all figures, tables and numbers in this report \\
@@ -75,7 +77,10 @@ Orthogonality & regression residuals are orthogonal to the factors, and $X_{iL}=
 OU recovery & the AR(1) mapping recovers the true $\kappa$ (up to known small-sample bias) \\
 s-score eligibility & slow or non-mean-reverting residuals yield no s-score \\
 Trading rule & every transition in \cref{tab:rule}, including same-day reversal \\
-\textbf{No look-ahead} (three variants) & replacing all data after day $t$ with random noise leaves every holding up to day $t$ unchanged, for daily hedges, frozen hedges with volume adjustment, and the no-trade band \\
+\textbf{No look-ahead} (six tests) & replacing all data after day $t$ with random noise leaves every holding up to day $t$ unchanged: daily hedges, frozen hedges with volume adjustment, the no-trade band, the ETF model, and the deep model's residual panel, inputs and walk-forward \\
+ETF model & the ETF hedge equals $-B^\top \bm w$ exactly; the dominant factor's exposure is hedged; each leg is charged its own cost \\
+Execution lag & signals are unchanged and holdings are delayed by exactly $k$ days \\
+Deep model & residual positions earn exactly the stock P\&L (\cref{eq:deep-stock}); allocation has unit gross exposure; training improves on the untrained network; no profit on pure noise; an interrupted walk-forward resumes from checkpoints with identical results \\
 End-to-end profitability & the strategy is profitable on the synthetic mean-reverting market \\
 Hedge modes & frozen hedges give identical signals with lower turnover, and are released on exit \\
 No-trade band & every executed trade exceeds $\delta$; turnover falls \\

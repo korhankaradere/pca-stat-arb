@@ -20,6 +20,25 @@ exposure could be hedged far more cheaply with index futures or sector ETFs, who
 are a fraction of a basis point to about one basis point. This suggests an important extension:
 hedge with liquid instruments (AL's ETF variant) and charge each leg its own realistic cost.
 
+\paragraph{Timing matters as much as costs.}
+The execution-lag results (\cref{sec:results:lag}) show that conclusions drawn from AL's
+convention of trading at the signal's close are optimistic. Short-horizon reversal is exactly the
+kind of signal that bid--ask bounce inflates: a closing price that prints at the bid looks like a
+loss that reverses the next day, even if nothing happened. A realistic evaluation therefore needs
+both a delay and a cost model, and the two interact. The strategies most robust to the delay
+(fewer factors, the no-trade band, the deep model) are also the ones that trade least.
+
+\paragraph{What the deep model adds, and what it does not.}
+Training on the net Sharpe ratio, with costs charged on the implied stock trades, produced a model
+that trades far less and keeps most of its edge under a one-day lag. Its break-even cost of about
+4~bps is the highest of any strategy evaluated at lag 1 without in-sample selection. Two caveats
+qualify this. First, the model learned a nearly long-only residual book, so about half of its
+lagged edge is an equal-weighted long position in residuals: a systematic tilt that a simple,
+cheap portfolio could capture, not statistical arbitrage. Constraining the residual book to be
+balanced (for example by demeaning scores before \cref{eq:deep-alloc}) would isolate the reversal
+component; this is left for future work, since it would add trials. Second, its validation
+performance is unstable across years, so the five-year average hides two losing years.
+
 \paragraph{Fewer factors, chosen by random-matrix theory.}
 The peak of the gross Sharpe ratio at $m=8$, matching the number of eigenvalues above the
 Marchenko--Pastur edge, suggests choosing $m$ adaptively each day as the number of
@@ -43,11 +62,12 @@ events such as earnings announcements is a more direct alternative.
   \item \textbf{Cost model.} A flat proportional cost, with no market impact, no short-borrow
         fees and no distinction between liquid and illiquid names or between stock and hedge
         trades.
-  \item \textbf{Execution.} Trades are assumed to execute at the closing price used to compute
-        the signal. In practice there is a lag between computing the signal and trading.
+  \item \textbf{Execution.} Only closing prices are available. A one-day lag is tested, but
+        execution at the next open or within the day is not.
   \item \textbf{Accounting.} Fixed capital, no compounding, no margin or financing costs, and
         missing next-day returns treated as zero.
-  \item \textbf{Multiple testing.} \NVariants{} variants have been evaluated in-sample. The best
-        in-sample Sharpe ratios are biased upwards and must be deflated.
+  \item \textbf{Multiple testing.} \NVariants{} rule-based configurations and the deep model at two
+        execution lags have been evaluated in-sample. The best in-sample Sharpe ratios are biased
+        upwards and must be deflated.
   \item \textbf{Single market and period.} Results are for large US stocks in 2011--2018 only.
 \end{itemize}

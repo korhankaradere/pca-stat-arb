@@ -141,21 +141,7 @@ def main():
     allv = allv.loc[~pd.Series(key).duplicated().values]
     n_variants = len(allv)
 
-    # Deep model: fold metadata from checkpoints (reading only).
-    import torch
-
-    folds = []
-    for f in sorted((ROOT / "results" / "deep" / "checkpoints").glob("fold_*.pt")):
-        folds.append(torch.load(f, weights_only=False)["fold"])
-    lines = [r"\begin{tabular}{@{}llllrrr@{}}", r"\toprule",
-             r"Trade year & Train from & Train to & Validate on & Seed 0 & Seed 1 & Seed 2\\", r"\midrule"]
-    for fd in folds:
-        y = fd["year"]
-        lines.append(f"{y} & {fd['train_start']} & {fd['train_end']} & {y - 1} & "
-                     + " & ".join(f"{fd[f'val_sharpe_seed{s}']:.2f}" for s in dcfg.seeds) + r"\\")
-    lines += [r"\bottomrule", r"\end{tabular}"]
-    (GEN / "deep_folds.tex").write_text(neg("\n".join(lines)) + "\n")
-    print("  generated/deep_folds.tex")
+    # Deep-model tables and numbers are shared with the technical report (make_report_assets.py).
 
     from pca_stat_arb.deep.model import CNNTransformer
 
@@ -167,7 +153,6 @@ def main():
         "MPNVariants": n_variants,
         "MPNTests": n_tests,
         "MPDeepParams": f"{n_params:,}".replace(",", "{,}"),
-        "MPDeepFoldsDone": len(folds),
         "MPBetaBase": f"{betas['baseline'][0]:.3f}", "MPCorrBase": f"{betas['baseline'][1]:.2f}",
         "MPBetaBest": f"{betas['f8_band20'][0]:.3f}", "MPCorrBest": f"{betas['f8_band20'][1]:.2f}",
         "MPBetaETF": f"{betas['etf'][0]:.3f}",

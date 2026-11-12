@@ -13,7 +13,8 @@ following protocol before running any experiment.
         happen once, for a small set of final variants chosen in advance. The report-generation
         script cuts the data at the split date before it does anything else.
   \item \textbf{Trial counting.} Every variant run is saved with its configuration. At the time of
-        writing, \NVariants{} distinct variants have been evaluated in-sample
+        writing, \NVariants{} distinct rule-based variants, and the deep model at two execution lags,
+        have been evaluated in-sample
         (\cref{app:variants}). This count will enter the deflated Sharpe ratio of the final
         results.
   \item \textbf{Fixed costs.} All variants are compared at the same one-way cost of 5~bps, the

@@ -6,15 +6,23 @@ stocks from 2011. The residual mean-reversion signal persists, with a gross in-s
 ratio of \BaseGrossSR{}, but at 5~bps one-way cost the original specification loses money
 because its gross edge is only \BaseBreakeven{}~bps per unit traded. About half of its trading
 comes from hedging, and hedging fewer factors together with a no-trade band roughly doubles the
-edge per trade, bringing the strategy to about break-even in-sample.
+edge per trade, bringing the strategy to about break-even in-sample. That conclusion does not
+survive realistic timing. Trading one day after the signal removes up to half of the gross Sharpe
+ratio, and every rule-based variant then loses money. A deep model trained on the net Sharpe
+ratio is much more robust to the delay and has the highest unselected break-even cost (about
+\DeepLagBE~bps), but it also falls short of 5~bps, and part of its edge is a systematic tilt
+rather than arbitrage. In-sample, the strategy family is profitable only if trading costs are
+below about 4~bps.
 
 Planned next steps:
 \begin{enumerate}
   \item \textbf{Statistical evaluation:} deflated Sharpe ratio, block-bootstrap confidence
         intervals, cost-sensitivity curves, and analysis of performance across regimes.
-  \item \textbf{Extensions:} hedging with sector ETFs at realistic costs, choosing the number of
-        factors each day from the Marchenko--Pastur edge, shrinkage estimators of the
-        correlation matrix \citep{ledoit2004}, and a learned model of which s-score signals revert.
+  \item \textbf{Costs and execution:} per-stock spread estimates from daily high and low prices,
+        and execution at the next open.
+  \item \textbf{Extensions:} choosing the number of factors each day from the Marchenko--Pastur
+        edge, shrinkage estimators of the correlation matrix \citep{ledoit2004}, and a deep model
+        constrained to a balanced residual book.
   \item \textbf{Data:} survivorship-free CRSP data with delisting returns.
   \item \textbf{Final evaluation:} a single, pre-registered evaluation on the 2019--2025 held-out
         period.

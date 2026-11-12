@@ -1,0 +1,19 @@
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lrrrrrrr@{}}
+\toprule
+Variant & Gross SR & Net SR & Net ret. & Vol & Max DD & TO$_{\text{stock}}$ & BE (bps)\\
+\midrule
+AL baseline ($m=15$) & 1.33 & \ensuremath{-}1.18 & \ensuremath{-}4.0\% & 3.4\% & \ensuremath{-}33.1\% & 0.67 & 2.6\\
+\quad lag 1 & 0.74 & \ensuremath{-}1.75 & \ensuremath{-}5.9\% & 3.4\% & \ensuremath{-}48.2\% & 0.67 & 1.5\\
+\midrule
+$m=8$, $\delta=0.002$ & 1.44 & 0.15 & 0.6\% & 3.6\% & \ensuremath{-}7.5\% & 0.37 & 5.6\\
+\quad lag 1 & 1.18 & \ensuremath{-}0.12 & \ensuremath{-}0.4\% & 3.6\% & \ensuremath{-}11.1\% & 0.37 & 4.5\\
+\midrule
+$m=3$, $\delta=0.0005$ & 1.24 & 0.17 & 0.7\% & 4.2\% & \ensuremath{-}7.6\% & 0.36 & 5.8\\
+\quad lag 1 & 0.97 & \ensuremath{-}0.12 & \ensuremath{-}0.5\% & 4.2\% & \ensuremath{-}12.4\% & 0.36 & 4.5\\
+\midrule
+Sector ETFs & 1.22 & 0.02 & 0.1\% & 3.9\% & \ensuremath{-}10.9\% & 0.32 & 5.1\\
+\quad lag 1 & 0.82 & \ensuremath{-}0.39 & \ensuremath{-}1.5\% & 3.9\% & \ensuremath{-}20.5\% & 0.32 & 3.1\\
+\quad ETF cost 2~bps & 1.22 & \ensuremath{-}0.15 & \ensuremath{-}0.6\% & 3.9\% & \ensuremath{-}13.1\% & 0.32 & 4.3\\
+\bottomrule
+\end{tabular}

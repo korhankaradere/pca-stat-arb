@@ -1,7 +1,7 @@
 \section{Results}
 \label{sec:results}
 
-All results in \cref{sec:results:factors-structure,sec:results:baseline,sec:results:variants,sec:results:factors,sec:results:band}
+All results in \cref{sec:results:factors-structure,sec:results:baseline,sec:results:variants,sec:results:factors,sec:results:band,sec:results:lag,sec:results:deep}
 are in-sample (\InSampleStart{} to 31~December~2018). \Cref{tab:main} summarises the main
 variants. \Cref{app:variants} lists all \NVariants{} variants evaluated.
 
@@ -163,10 +163,152 @@ Sharpe 1.44) and $m=3$ with $\delta = 0.0005$ (gross Sharpe 1.24). These are mod
 correcting for the \NVariants{} variants tried, they are unlikely to be statistically
 distinguishable from zero.
 
+\subsection{Execution lag and sector ETFs}
+\label{sec:results:lag}
+
+All results so far trade at the close that produced the signal (lag $k=0$), as in AL.
+\Cref{tab:lag} repeats the main variants with a one-day execution lag (\cref{eq:lag}), and adds the
+sector-ETF factor model of \cref{sec:method:etf}.
+
+\begin{table}[ht]
+\centering
+\caption{In-sample results (2011--2018) at execution lag 0 and 1, with stock costs of 5~bps and
+ETF costs of 1~bp unless noted. TO$_{\text{stock}}$: mean daily one-way stock turnover. BE:
+break-even stock cost (\cref{eq:breakeven}).}
+\label{tab:lag}
+\small
+\input{generated/lag_table.tex}
+\end{table}
+
+\paragraph{Execution lag.} Delaying execution by a single day removes \LagLossBase\% of the
+baseline's gross Sharpe ratio (\BaseGrossSR{} $\to$ \LagBaseGrossSR), \LagLossBest\% for the best
+variant ($m=8$, $\delta=0.002$) and \LagLossETF\% for the ETF model (\cref{fig:lag}). With the lag,
+every variant is net-negative at 5~bps: the best reaches a net Sharpe ratio of \LagBestNetSR{} and
+a break-even cost of \LagBestBE~bps. A substantial part of the measured edge therefore depends on
+trading at the exact closing price that produced the signal. That price cannot be traded in
+practice, and part of the apparent reversal it captures is bid--ask bounce rather than genuine
+mean reversion. The variants with fewer factors and a no-trade band lose the least, which suggests
+that their signal is less concentrated in the first day after the signal.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{lag_gross}
+\caption{Cumulative in-sample gross P\&L when trading at the signal's close (lag 0) and at the
+next close (lag 1).}
+\label{fig:lag}
+\end{figure}
+
+\paragraph{Sector ETFs.} Hedging with nine sector ETFs instead of eigenportfolio baskets halves
+stock turnover (\ETFStockTO{} per day, plus \ETFEtfTO{} of ETF trading at 1~bp). However, the
+residuals of the ETF regression carry a weaker signal: gross Sharpe \ETFGrossSR{} against
+\BaseGrossSR{} for the PCA baseline. The ETF model is roughly break-even at lag 0 (net Sharpe
+\ETFNetSR, break-even \ETFBE~bps) and loses money at lag 1 (\ETFLagNetSR). Cheap hedging works as
+intended; what is lost is the quality of the residual. Nine sector ETFs explain less of the
+common variation than eight to fifteen statistical factors.
+
+\subsection{Deep-learning model}
+\label{sec:results:deep}
+
+The deep model of \cref{sec:method:deep} trades only 2014--2018, the years for which at least two
+earlier years are available for training. \Cref{tab:deep} compares it with the AL strategies over
+the same five years. The $m=8$, $\delta=0.002$ variant was selected using data that includes these
+years, so its row is flattered by selection. The AL baseline, whose parameters were fixed in
+advance, is the fair comparison.
+
+\begin{table}[ht]
+\centering
+\caption{The deep model against the AL strategies over its trading years, 2014--2018 (5~bps stock
+cost). The strategies run at different gross exposures, so Sharpe ratios and break-even costs are
+comparable across rows but returns and volatilities are not.
+\textsuperscript{*}Selected using data that includes these years.}
+\label{tab:deep}
+\small
+\input{generated/deep_table.tex}
+\end{table}
+
+\paragraph{Performance.} At lag 0 the deep model has a gross Sharpe ratio of \DeepGrossSR{}, below
+the baseline's \ALDeepYearsGrossSR{} over the same years, but it trades about one-seventh as much
+(\DeepTO{} against 0.67 of capital per day). Its break-even cost is \DeepBE~bps against 2.6, and its
+net Sharpe ratio is \DeepNetSR{} against \ALDeepYearsNetSR. The difference is largest under
+realistic timing. A one-day lag costs the deep model only \DeepLagLoss\% of its gross Sharpe ratio
+(\DeepGrossSR{} $\to$ \DeepLagGrossSR), against \ALDeepYearsLagLoss\% for the baseline over the same
+years. At lag 1 its break-even cost is \DeepLagBE~bps, roughly three times the baseline's
+\ALDeepYearsLagBE~bps, and its net Sharpe ratio is \DeepLagNetSR{} against \ALDeepYearsLagNetSR.
+Training against costs (\cref{eq:deep-net}) has produced a signal that trades far less and does
+not depend on the first day after the signal. It still does not clear a 5~bps cost: net P\&L is
+positive in \DeepLagPosYears{} of the five years at lag 1, and \DeepLagWorstYear{} loses
+\DeepLagWorstYearRet\% (\cref{fig:deepcum}). \Cref{fig:deepcosts} shows the cost each strategy could
+afford. The deep model needs costs below about 4~bps.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{deep_cum_net}
+\caption{Cumulative net P\&L (5~bps) over 2014--2018 at lag 0 and lag 1.}
+\label{fig:deepcum}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{deep_costs}
+\caption{Net Sharpe ratio over 2014--2018 as a function of the one-way stock cost. Dashed line: the
+assumed 5~bps.}
+\label{fig:deepcosts}
+\end{figure}
+
+\paragraph{What the model learned.} The allocation of \cref{eq:deep-alloc} normalises gross
+exposure but does not force the residual book to be balanced between longs and shorts. In
+practice the network learned an almost entirely long book in residual space. On every trading day
+the residual weights sum to \DeepNetExposure, and about \DeepLongShare\% of positions are long.
+\Cref{fig:deepresponse} shows why: on stylised residual paths, the final ensemble's scores are
+positive everywhere, but much larger for stocks whose residual has fallen than for those whose
+residual has risen. The model therefore expresses reversal as a \emph{tilt} towards recent losers
+within a long position in all residuals.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{deep_response}
+\caption{Scores of the \DeepRespYear{} ensemble (lag 1) on stylised 30-day residual paths, as a
+function of the cumulative residual at the end of the window. Three path shapes are shown.}
+\label{fig:deepresponse}
+\end{figure}
+
+To separate these two components, we split the residual weights into an equal-weighted long
+position in every held residual, with the same net exposure, and the remaining
+loser-versus-winner tilt. At lag 0 the tilt accounts for \DeepTiltShareLagZero\% of the gross
+residual P\&L (Sharpe \DeepTiltSRLagZero), and the equal-weighted long position for
+\DeepLongShareLagZero\% (Sharpe \DeepLongSRLagZero). At lag 1 the split is
+\DeepTiltShareLagOne\%/\DeepLongShareLagOne\% (Sharpe \DeepTiltSRLagOne{} and \DeepLongSRLagOne). The
+two components are nearly uncorrelated ($|\rho| \le \DeepDecompCorr$). The equal-weighted residual
+earns a positive return because eight PCA factors do not capture every common effect, for
+example differences between small and large or low- and high-volatility stocks. It is a
+systematic tilt, not statistical arbitrage, although it barely moves with the market (beta
+\DeepBeta{} against the equal-weighted universe). The deep model therefore does capture genuine
+reversal, but with realistic timing about half of its edge comes from this tilt.
+(For lag 1 the split is computed on residual returns, whose gross Sharpe ratio is
+\DeepResidSRLagOne{} against \DeepLagGrossSR{} for the traded stock portfolio, because the lagged
+holdings use one-day-old loadings. For lag 0 the two coincide.)
+
+\paragraph{Training stability.} \Cref{tab:deepfolds} reports the best validation Sharpe ratio of
+each ensemble member. Two patterns stand out. First, seeds can disagree sharply: in 2014 one seed's
+best score is near zero at both lags, against 1.5--2.0 for the others. This justifies the
+ensemble. Second, validation scores are negative in 2016 and strongly negative in 2018 for every
+seed at both lags: on the 2015 and 2017 validation years, no epoch was profitable net of costs. These scores are maxima over epochs and therefore optimistic, so the
+negative years are a clear warning that the model's edge is unstable over time.
+
+\begin{table}[ht]
+\centering
+\caption{Best validation net Sharpe ratio of each ensemble member, by trading year. Each model
+trains on data from the given start to two years before the trading year and is validated on the
+year before it.}
+\label{tab:deepfolds}
+\small
+\input{generated/deep_folds.tex}
+\end{table}
+
 \subsection{Held-out test}
 \label{sec:oos}
 
-\todo{Pre-register the final variants (proposed: AL baseline; $m=8$ with $\delta=0.002$; $m=3$
-with $\delta=0.0005$; plus phase-3 extensions), then run \code{experiments.py --reveal-test}
-once and report the test-period performance, deflated Sharpe ratio and bootstrap confidence
-intervals.}
+\todo{Pre-register the final variants, all at execution lag 1 (proposed: AL baseline; $m=8$
+with $\delta=0.002$; sector ETFs; the deep model; and, if implemented, an adaptive factor count),
+then run the 2019--2025 test once and report test-period performance, the deflated Sharpe ratio
+and bootstrap confidence intervals.}

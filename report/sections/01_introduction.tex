@@ -36,6 +36,11 @@ performance in the later years of their sample. This project asks three question
         signal itself.
   \item Evidence that hedging fewer factors, chosen in line with random-matrix theory, and a
         no-trade band roughly double the edge per unit traded.
+  \item Evidence that a large part of the measured edge depends on trading at the signal's own
+        closing price: a one-day execution lag removes up to half of the gross Sharpe ratio.
+  \item A deep-learning signal extractor, trained on the net-of-cost Sharpe ratio in a strict
+        walk-forward, that is far more robust to execution lag than the rule-based strategy, and a
+        decomposition showing how much of its edge is reversal and how much a systematic tilt.
   \item An evaluation protocol with a strict in-sample/test split enforced by the tooling, and an
         explicit count of every variant tried, so the final results can be corrected for
         multiple testing.

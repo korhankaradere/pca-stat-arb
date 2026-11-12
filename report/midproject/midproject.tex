@@ -28,7 +28,7 @@
 \title{PCA-Based Statistical Arbitrage on US Equities\\[2pt]
 \large Mid-Project Report}
 \author{Korhan Karadere\\ \small MEng Biomedical Engineering, Imperial College London}
-\date{23 October 2026\\ \small Covers work from 13 to 23 October 2026. All results are in-sample (2011--2018);
+\date{12 November 2026 (first version 23 October)\\ \small Covers work from 13 October to 12 November 2026. All results are in-sample (2011--2018);
 the 2019--2025 test period has not been evaluated.}
 
 \begin{document}
@@ -39,15 +39,18 @@ the 2019--2025 test period has not been evaluated.}
 PCA statistical arbitrage strategy of \citet{avellaneda2010} on S\&P~500 stocks. A tested
 Python implementation, an evaluation protocol with an enforced held-out period, three families
 of cost-reduction variants, a sector-ETF factor model, an execution-lag robustness check and a
-draft technical report are complete. A deep-learning signal extractor following
-\citet{guijarro2021} is implemented and mid-way through walk-forward training. The central
+draft technical report are complete, as is a deep-learning signal extractor following
+\citet{guijarro2021}, trained in a yearly walk-forward at both execution lags. The central
 in-sample finding is that the residual mean-reversion signal is statistically strong before
 costs (gross Sharpe ratio \MPBaseGrossSR{}) but economically thin: it earns \MPBaseBE{}~bps per
 unit traded against an assumed 5~bps cost, giving a net Sharpe ratio of \MPBaseNetSR{}. Reducing
 the number of hedged factors and adding a no-trade band raises the break-even cost to
 \MPBestBE{}~bps (net Sharpe \MPBestNetSR{}). However, trading one day after the signal instead of
 at the signal's own close removes \MPLagLossBest--\MPLagLossBase\% of the gross Sharpe ratio, and
-under that realistic timing no variant tested so far is profitable net of costs.
+under that realistic timing no rule-based variant is profitable net of costs. The deep model
+trades a seventh as much, loses only \DeepLagLoss\% of its gross Sharpe ratio to the lag and breaks
+even at \DeepLagBE~bps over 2014--2018, about three times the original rule, but it also falls short
+of 5~bps, and about half of its lagged edge is a systematic long tilt in residuals.
 \end{abstract}
 
 \tableofcontents
@@ -71,10 +74,10 @@ Evaluation protocol (in-sample 2011--18 / test 2019--25) & Complete and enforced
 Cost-reduction variants (factors, band, frozen hedge, volume) & Complete; \MPNVariants{} distinct configurations evaluated \\
 Sector-ETF factor model & Complete \\
 Execution-lag robustness check & Complete; materially changes conclusions \\
-Technical report (LaTeX, 18 pp.) & First draft complete; results chapter awaits final test \\
-Deep-learning extension (CNN+Transformer) & Implemented and tested; training \MPDeepFoldsDone{}/5 yearly folds done (lag 0) \\
-Results dashboard & Built for PCA results; deep results pending \\
-Version control & Git + private GitHub repository; 4 local commits not yet pushed \\
+Technical report (LaTeX, 27 pp.) & Methodology and all in-sample results complete; held-out results pending \\
+Deep-learning extension (CNN+Transformer) & Complete: trained and evaluated at lag 0 and lag 1 (2014--2018) \\
+Results dashboard & Updated with the deep-model results \\
+Version control & Git + private GitHub repository, fully pushed \\
 Statistical tooling (deflated Sharpe, bootstrap) & Not started \\
 Per-stock cost model (OHLC spreads) & Not started \\
 CRSP survivorship-free data & Not started \\
@@ -101,6 +104,11 @@ Final held-out evaluation & Not started; final variants to be pre-registered \\
         variant). With realistic timing every variant is net-negative at 5~bps.
   \item \textbf{Sector-ETF hedging halves stock turnover} but yields a weaker signal; it is
         approximately break-even at lag~0 (net Sharpe \MPETFNetSR{}).
+  \item \textbf{The deep model is the most robust to realistic timing.} Over 2014--2018 at lag 1 it
+        breaks even at \DeepLagBE~bps against \ALDeepYearsLagBE~bps for the original rule (net Sharpe
+        \DeepLagNetSR{} against \ALDeepYearsLagNetSR). It still loses money at 5~bps, and it learned
+        an almost entirely long residual book: at lag 1 about half its edge is reversal and half a
+        systematic tilt.
 \end{enumerate}
 
 %=====================================================================
@@ -142,7 +150,7 @@ Phase & Work package & Status & Evidence \\
 -- & Technical report draft with generated assets & Done (16 Oct) & \code{report/main.pdf} \\
 1b & Sector-ETF factor model; execution lag; split stock/ETF costs & Done (20 Oct) & \code{results/etf\_and\_lag} \\
 -- & Git, GitHub, relocation off iCloud & Done (20 Oct) & private repository \\
-3a & Deep-learning signal extractor & In progress & \code{src/pca\_stat\_arb/deep} \\
+3a & Deep-learning signal extractor, both execution lags & Done (12 Nov) & \code{results/deep} \\
 2 & Deflated Sharpe, bootstrap CIs, regime analysis & Not started & -- \\
 2b & Per-stock spread estimates from OHLC & Not started & -- \\
 3b & Marchenko--Pastur adaptive factor count & Not started & -- \\
@@ -373,7 +381,7 @@ Dashed line: the assumed 5~bps.}
 \end{figure}
 
 %=====================================================================
-\section{Deep-learning extension (in progress)}
+\section{Deep-learning extension}
 \label{sec:deep}
 
 \subsection{Motivation}
@@ -415,7 +423,7 @@ execution lag $k$ it will be deployed with.
 trained on all data from 15 February 2011 (the first day with complete features) to the end of
 $y-2$, validated on year $y-1$, and then trades year $y$ frozen. Training stops $1+k$ days before
 the trading year so that no label overlaps it. Three seeds are trained per year and their scores
-averaged. All hyper-parameters are fixed in advance from the paper, so the model counts as one
+averaged. All hyper-parameters were fixed in advance and not tuned, so the model counts as one
 trial per lag, not a search. The data are truncated at the split date, so 2019--2025 is never
 seen.
 
@@ -426,31 +434,55 @@ MPS allocator and releasing its cache after every step. An earlier lag-1 attempt
 allocator cap and stopped; the cap was raised and the launcher now stops on failure. Finished
 years are checkpointed, so an interrupted run resumes.
 
-\subsection{Status}
-At the time of writing (23 October, 23:00), the lag-0 run has completed \MPDeepFoldsDone{} of its
-five yearly folds and is training the 2017 fold; the lag-1 run follows. \Cref{tab:folds} lists the best validation Sharpe of each ensemble member.
+\subsection{Results}
+Both runs are complete: lag 0 finished on 24 October and lag 1 on 12 November (36.5 minutes once
+the machine was kept awake). \Cref{tab:deep} compares the deep model with the AL strategies over its
+trading years.
 
 \begin{table}[ht]
 \centering
-\caption{Completed walk-forward folds (lag 0): best validation net Sharpe per seed. These are
-maxima over epochs and therefore optimistic; they are not trading results.}
-\label{tab:folds}
+\caption{2014--2018, 5~bps stock cost. Sharpe ratios and break-even costs are comparable across
+rows; returns and volatilities are not (different gross exposures).
+\textsuperscript{*}Selected using data that includes these years.}
+\label{tab:deep}
 \small
-\input{generated/deep_folds.tex}
+\input{../generated/deep_table.tex}
 \end{table}
 
-Early observations, which are provisional:
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{deep_cum_net}
+\caption{Cumulative net P\&L (5~bps), 2014--2018, at lag 0 and lag 1.}
+\label{fig:deepcum}
+\end{figure}
+
+\paragraph{Findings.}
 \begin{itemize}
-  \item Validation scores for the 2014 and 2015 folds are positive net of 5~bps, but one seed in
-        2014 (0.10) differs sharply from the others (1.71, 1.61). Training is seed-sensitive,
-        which supports ensembling.
-  \item In the 2016 fold (validated on 2015), all three seeds have negative best validation
-        scores ($-0.91$, $-0.75$, $-0.55$): on 2015 the model found no configuration that is
-        profitable net of costs. This is the same cost barrier the PCA rule faces.
-  \item Trading-year results will be reported only after all folds finish, against the AL
-        baseline over the same years. The tuned PCA variants were selected using data that
-        includes 2014--2018, so comparing against them would flatter the PCA side.
+  \item \textbf{Robust to timing.} The one-day lag costs the deep model \DeepLagLoss\% of its gross
+        Sharpe ratio, against \ALDeepYearsLagLoss\% for the AL baseline over the same years. It
+        trades about a seventh as much (\DeepLagTO{} of capital per day).
+  \item \textbf{Still below the cost barrier.} At lag 1 its break-even cost is \DeepLagBE~bps, so
+        it loses money at 5~bps (net Sharpe \DeepLagNetSR). Net P\&L is positive in
+        \DeepLagPosYears{} of 5 years; \DeepLagWorstYear{} loses \DeepLagWorstYearRet\%.
+  \item \textbf{A long tilt, not only reversal.} The residual book is almost entirely long (weights
+        sum to \DeepNetExposure{} every day). Splitting its P\&L into an equal-weighted long position
+        in all residuals and the remaining loser-versus-winner tilt gives
+        \DeepTiltShareLagZero\%/\DeepLongShareLagZero\% (tilt/long) at lag 0 and
+        \DeepTiltShareLagOne\%/\DeepLongShareLagOne\% at lag 1. The two parts are nearly uncorrelated,
+        and the market beta is \DeepBeta.
+  \item \textbf{Unstable across years.} Best validation scores (\cref{tab:folds}) are negative in
+        2016 and strongly negative in 2018 for every seed at both lags, and one seed in 2014 scores
+        near zero while the others score 1.5--2.0.
 \end{itemize}
+
+\begin{table}[ht]
+\centering
+\caption{Best validation net Sharpe per ensemble member and trading year, for both execution lags.
+These are maxima over epochs and therefore optimistic; they are not trading results.}
+\label{tab:folds}
+\small
+\input{../generated/deep_folds.tex}
+\end{table}
 
 %=====================================================================
 \section{Issues encountered and resolutions}
@@ -491,9 +523,8 @@ Synthetic tests too strict & Weak simulated factors made beta estimates noisy & 
         \citep{bailey2014}.
   \item \textbf{Execution model.} Only close prices are available; next-open execution and
         intraday timing cannot be tested yet.
-  \item \textbf{Deep model risk.} Seed sensitivity and early negative validation scores suggest
-        that it may not beat the cost barrier either; it must be judged on trading years only.
-  \item \textbf{Unpushed work.} Four commits exist only locally; they should be pushed to GitHub.
+  \item \textbf{Deep model.} Its edge is unstable across years and partly a systematic long
+        tilt; a balanced-book variant would be a further trial and must be counted as one.
 \end{enumerate}
 
 %=====================================================================
@@ -502,8 +533,6 @@ Synthetic tests too strict & Weak simulated factors made beta estimates noisy & 
 
 In order of priority:
 \begin{enumerate}
-  \item \textbf{Finish deep training} (lag 0 and lag 1) and report trading-year results against the
-        AL baseline over 2014--2018, with figures and the dashboard update.
   \item \textbf{Per-stock cost model:} store open, high and low prices; estimate spreads
         (e.g.\ Corwin--Schultz); re-evaluate the shortlisted variants. Add next-open execution.
   \item \textbf{Statistical tooling:} deflated Sharpe ratio using the full trial count, block
