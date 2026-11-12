@@ -185,6 +185,8 @@ def load_all_variants(split: pd.Timestamp, strategy, overrides: dict) -> pd.Data
     rows = {}
     for path in sorted((ROOT / "results").glob("*/*_pnl.csv")):
         name = path.stem.removesuffix("_pnl")
+        if path.parent.name == "deep":  # the deep model is reported separately, not as a rule-based variant
+            continue
         if name in rows:
             continue
         if name not in overrides:
